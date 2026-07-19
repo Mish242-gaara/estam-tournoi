@@ -63,6 +63,26 @@ export default function Page() {
     if (stored) pinRef.current = stored;
   }, [loadAll]);
 
+  // Rafraîchissement automatique en arrière-plan (façon Flashscore) — toutes les 12s,
+  // sans afficher de chargement, pour que tous les visiteurs voient les scores en direct.
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const [m, t, s] = await Promise.all([
+          fetch("/api/matches").then(r => r.json()),
+          fetch("/api/teams").then(r => r.json()),
+          fetch("/api/scorers").then(r => r.json())
+        ]);
+        setMatches(m);
+        setTeams(t);
+        setScorers(s);
+      } catch (e) {
+        // échec silencieux — on retentera au prochain cycle
+      }
+    }, 12000);
+    return () => clearInterval(id);
+  }, []);
+
   // ---------- admin session ----------
   async function confirmPin() {
     try {
@@ -151,6 +171,46 @@ export default function Page() {
       await apiMutate(`/api/matches/${id}`, "DELETE");
       setMatches(m => m.filter(x => x.id !== id));
     } catch (e) {}
+  }
+
+  // ---------- live goal events ----------
+  async function addEvent(matchId, { minute, team, scorer }) {
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-pin": pinRef.current },
+        body: JSON.stringify({ matchId, minute, team, scorer })
+      });
+      if (res.status === 401) {
+        setIsAdmin(false);
+        showToast("Session organisateur expirée, reconnectez-vous.", true);
+        return;
+      }
+      if (!res.ok) { showToast("Erreur lors de l'ajout du but.", true); return; }
+      const { event, match } = await res.json();
+      setMatches(list => list.map(m => (m.id === matchId ? { ...match, events: [...(m.events || []), event].sort((a, b) => a.minute - b.minute) } : m)));
+      showToast("But ajouté");
+    } catch (e) {
+      showToast("Erreur lors de l'ajout du but.", true);
+    }
+  }
+  async function deleteEvent(eventId, matchId) {
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "DELETE",
+        headers: { "x-admin-pin": pinRef.current }
+      });
+      if (res.status === 401) {
+        setIsAdmin(false);
+        showToast("Session organisateur expirée, reconnectez-vous.", true);
+        return;
+      }
+      if (!res.ok) { showToast("Erreur lors de la suppression.", true); return; }
+      const { match } = await res.json();
+      setMatches(list => list.map(m => (m.id === matchId ? { ...(match || m), events: (m.events || []).filter(e => e.id !== eventId) } : m)));
+    } catch (e) {
+      showToast("Erreur lors de la suppression.", true);
+    }
   }
 
   // ---------- teams CRUD ----------
@@ -279,7 +339,18 @@ export default function Page() {
       <div className="wrap">
         {tab === "accueil" && (
           <section className="tab active">
-            <div className="section-head">
+            {matches.some(m => m.status === "live") && (
+              <>
+                <div className="section-head">
+                  <h2><span className="live-dot" /> En direct</h2>
+                </div>
+                {matches.filter(m => m.status === "live").map(m => (
+                  <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                ))}
+              </>
+            )}
+
+            <div className="section-head" style={{ marginTop: matches.some(m => m.status === "live") ? 34 : 0 }}>
               <h2>Aperçu du tournoi</h2>
               <div className="sub">{loading ? "Chargement…" : "Données partagées entre organisateurs"}</div>
             </div>
@@ -338,7 +409,7 @@ export default function Page() {
                   {matchesByDate[date]
                     .sort((a, b) => a.time.localeCompare(b.time))
                     .map(m => (
-                      <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} />
+                      <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
                     ))}
                 </div>
               ))
@@ -470,7 +541,10 @@ function Scoreboard({ match, isLive, loading }) {
     <div className="scoreboard">
       <div className="sb-label">
         <div className="lab">{isLive ? "Match en cours" : "Prochain match"}</div>
-        <div className={`status ${statusClass}`}>{statusLabel}</div>
+        <div className={`status ${statusClass}`}>
+          {match.status === "live" && <span className="live-dot" />}
+          {match.status === "live" ? `${match.minute ?? 0}' — ${statusLabel}` : statusLabel}
+        </div>
       </div>
       <div className="sb-grid">
         <div className="sb-team">{match.teamA}</div>
@@ -486,35 +560,20 @@ function Scoreboard({ match, isLive, loading }) {
 }
 
 // ============================================================
-// Match card (view + admin edit)
+// Match card (view + admin edit + live goals)
 // ============================================================
-function MatchCard({ m, isAdmin, onUpdate, onDelete }) {
-  if (isAdmin) {
-    return (
-      <div className="match-card">
-        <input className="edit date" type="date" defaultValue={m.date} onChange={e => onUpdate(m.id, { date: e.target.value })} />
-        <input className="edit time" type="time" defaultValue={m.time} onChange={e => onUpdate(m.id, { time: e.target.value })} />
-        <div className="match-teams">
-          <input className="edit team" defaultValue={m.teamA} onChange={e => onUpdate(m.id, { teamA: e.target.value })} />
-          <input className="edit score" type="number" defaultValue={m.scoreA ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreA: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
-          <span className="sep">VS</span>
-          <input className="edit score" type="number" defaultValue={m.scoreB ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreB: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
-          <input className="edit team" defaultValue={m.teamB} onChange={e => onUpdate(m.id, { teamB: e.target.value })} />
-        </div>
-        <select className="edit" defaultValue={m.group} onChange={e => onUpdate(m.id, { group: e.target.value })}>
-          <option value="A">Groupe A</option>
-          <option value="B">Groupe B</option>
-        </select>
-        <select className="edit" defaultValue={m.status} onChange={e => onUpdate(m.id, { status: e.target.value })}>
-          <option value="upcoming">À venir</option>
-          <option value="live">En direct</option>
-          <option value="done">Terminé</option>
-        </select>
-        <div className="match-admin">
-          <button className="btn danger small" onClick={() => onDelete(m.id)}>Supprimer</button>
-        </div>
-      </div>
-    );
+function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }) {
+  const [expanded, setExpanded] = useState(m.status === "live");
+  const [newScorer, setNewScorer] = useState("");
+  const [newTeam, setNewTeam] = useState("A");
+  const [newMinute, setNewMinute] = useState(m.minute || 1);
+  const events = (m.events || []).slice().sort((a, b) => a.minute - b.minute);
+  const isLive = m.status === "live";
+
+  function submitGoal(e) {
+    e.preventDefault();
+    onAddEvent(m.id, { minute: parseInt(newMinute, 10) || 0, team: newTeam, scorer: newScorer.trim() || null });
+    setNewScorer("");
   }
 
   const hasScore = m.scoreA !== null && m.scoreA !== undefined && m.scoreB !== null && m.scoreB !== undefined;
@@ -522,23 +581,95 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete }) {
   const statusLabel = m.status === "done" ? "Terminé" : m.status === "live" ? "En direct" : "À venir";
 
   return (
-    <div className="match-card">
-      <div className="match-time">{m.time}</div>
-      <div className="match-teams">
-        <span className="nm">{m.teamA}</span>
-        {hasScore ? (
-          <>
-            <span className="sc">{m.scoreA}</span><span className="sep">–</span><span className="sc">{m.scoreB}</span>
-          </>
-        ) : (
-          <span className="sep">VS</span>
-        )}
-        <span className="nm">{m.teamB}</span>
-      </div>
-      <div className="match-tags">
-        <span className="tag">Groupe {m.group}</span>
-        <span className={`tag ${statusClass}`}>{statusLabel}</span>
-      </div>
+    <div className={`match-card-wrap${isLive ? " is-live" : ""}`}>
+      {isAdmin ? (
+        <div className="match-card">
+          <input className="edit date" type="date" defaultValue={m.date} onChange={e => onUpdate(m.id, { date: e.target.value })} />
+          <input className="edit time" type="time" defaultValue={m.time} onChange={e => onUpdate(m.id, { time: e.target.value })} />
+          <div className="match-teams">
+            <input className="edit team" defaultValue={m.teamA} onChange={e => onUpdate(m.id, { teamA: e.target.value })} />
+            <input className="edit score" type="number" value={m.scoreA ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreA: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
+            <span className="sep">VS</span>
+            <input className="edit score" type="number" value={m.scoreB ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreB: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
+            <input className="edit team" defaultValue={m.teamB} onChange={e => onUpdate(m.id, { teamB: e.target.value })} />
+          </div>
+          <select className="edit" defaultValue={m.group} onChange={e => onUpdate(m.id, { group: e.target.value })}>
+            <option value="A">Groupe A</option>
+            <option value="B">Groupe B</option>
+          </select>
+          <select className="edit" defaultValue={m.status} onChange={e => onUpdate(m.id, { status: e.target.value })}>
+            <option value="upcoming">À venir</option>
+            <option value="live">En direct</option>
+            <option value="done">Terminé</option>
+          </select>
+          {isLive && (
+            <div className="minute-control">
+              <input className="edit minute" type="number" min="0" value={m.minute ?? 0} onChange={e => onUpdate(m.id, { minute: parseInt(e.target.value, 10) || 0 })} />
+              <span className="min-suffix">'</span>
+              <button type="button" className="btn small ghost" onClick={() => onUpdate(m.id, { minute: (m.minute || 0) + 1 })}>+1'</button>
+            </div>
+          )}
+          <div className="match-admin">
+            <button className="btn small ghost" onClick={() => setExpanded(x => !x)}>{expanded ? "Réduire" : "Buts"}</button>
+            <button className="btn danger small" onClick={() => onDelete(m.id)}>Supprimer</button>
+          </div>
+        </div>
+      ) : (
+        <div className="match-card" onClick={() => events.length > 0 && setExpanded(x => !x)} style={{ cursor: events.length > 0 ? "pointer" : "default" }}>
+          <div className="match-time">
+            {isLive ? (
+              <span className="live-minute"><span className="live-dot" />{m.minute ?? 0}'</span>
+            ) : (
+              m.time
+            )}
+          </div>
+          <div className="match-teams">
+            <span className="nm">{m.teamA}</span>
+            {hasScore ? (
+              <>
+                <span className="sc">{m.scoreA}</span><span className="sep">–</span><span className="sc">{m.scoreB}</span>
+              </>
+            ) : (
+              <span className="sep">VS</span>
+            )}
+            <span className="nm">{m.teamB}</span>
+          </div>
+          <div className="match-tags">
+            <span className="tag">Groupe {m.group}</span>
+            <span className={`tag ${statusClass}`}>{statusLabel}</span>
+          </div>
+        </div>
+      )}
+
+      {expanded && (
+        <div className="events-panel">
+          {events.length === 0 ? (
+            <div className="events-empty">Aucun but pour le moment.</div>
+          ) : (
+            <ul className="events-list">
+              {events.map(ev => (
+                <li key={ev.id} className={`event-item team-${ev.team}`}>
+                  <span className="ev-minute">{ev.minute}'</span>
+                  <span className="ev-ball">⚽</span>
+                  <span className="ev-scorer">{ev.scorer || "But"} <span className="ev-team">({ev.team === "A" ? m.teamA : m.teamB})</span></span>
+                  {isAdmin && <button className="ev-del" onClick={() => onDeleteEvent(ev.id, m.id)}>✕</button>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {isAdmin && (
+            <form className="goal-form" onSubmit={submitGoal}>
+              <select value={newTeam} onChange={e => setNewTeam(e.target.value)} className="edit">
+                <option value="A">{m.teamA}</option>
+                <option value="B">{m.teamB}</option>
+              </select>
+              <input className="edit" type="number" min="0" placeholder="Min." value={newMinute} onChange={e => setNewMinute(e.target.value)} style={{ width: 56 }} />
+              <input className="edit" type="text" placeholder="Buteur (optionnel)" value={newScorer} onChange={e => setNewScorer(e.target.value)} style={{ flex: 1, minWidth: 100 }} />
+              <button type="submit" className="btn primary small">⚽ But</button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

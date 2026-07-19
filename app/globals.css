@@ -225,3 +225,40 @@ footer{ border-top:1px solid rgba(255,255,255,0.08); background:var(--navy-900);
 .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--navy-800); border:1px solid var(--success); color:white; padding:10px 20px; border-radius:20px; font-size:13px; z-index:200; opacity:0; pointer-events:none; transition:opacity .25s; }
 .toast.show{ opacity:1; }
 .toast.error{ border-color:var(--red-600); }
+
+/* ---------- live match features ---------- */
+@keyframes pulse-dot{
+  0%{ box-shadow:0 0 0 0 rgba(212,27,43,0.55); }
+  70%{ box-shadow:0 0 0 7px rgba(212,27,43,0); }
+  100%{ box-shadow:0 0 0 0 rgba(212,27,43,0); }
+}
+.live-dot{
+  display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--red-600);
+  margin-right:6px; vertical-align:middle; animation:pulse-dot 1.6s infinite;
+}
+.section-head h2 .live-dot, .section-head h2 > .live-dot{ margin-right:8px; }
+
+.match-card-wrap.is-live .match-card{ border-color:rgba(212,27,43,0.45); box-shadow:0 0 0 1px rgba(212,27,43,0.15) inset; }
+.live-minute{ font-family:'JetBrains Mono'; font-weight:700; color:#ff8a8a; font-size:14px; display:inline-flex; align-items:center; }
+
+.minute-control{ display:flex; align-items:center; gap:4px; }
+input.edit.minute{ width:50px; text-align:center; font-family:'JetBrains Mono'; }
+.min-suffix{ color:var(--grey-500); font-family:'Oswald'; font-size:13px; }
+
+.events-panel{
+  background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-top:none;
+  border-radius:0 0 var(--radius) var(--radius); padding:12px 16px; margin:-10px 0 10px;
+}
+.events-empty{ color:var(--grey-500); font-size:12.5px; font-style:italic; padding:6px 0; }
+.events-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.event-item{ display:flex; align-items:center; gap:8px; font-size:13px; padding:4px 0; }
+.event-item .ev-minute{ font-family:'JetBrains Mono'; color:var(--gold-500); min-width:32px; font-weight:700; }
+.event-item .ev-ball{ font-size:12px; }
+.event-item .ev-scorer{ flex:1; }
+.event-item .ev-team{ color:var(--grey-500); font-size:12px; }
+.event-item.team-B{ flex-direction:row-reverse; text-align:right; }
+.event-item.team-B .ev-scorer{ text-align:right; }
+.ev-del{ background:none; border:none; color:var(--grey-500); cursor:pointer; font-size:12px; padding:2px 6px; }
+.ev-del:hover{ color:#ff8a8a; }
+
+.goal-form{ display:flex; gap:6px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06); flex-wrap:wrap; }
