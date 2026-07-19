@@ -42,9 +42,18 @@ l'éditeur SQL de Neon, sans passer par le script Node.)
 - N'importe quel visiteur voit le programme, les classements et les buteurs en lecture seule.
 - Un organisateur clique sur **"Mode organisateur"**, entre le code (`ADMIN_PIN`), et peut :
   - Ajouter / modifier / supprimer des matchs (date, heure, équipes, score, statut, groupe).
+  - Passer un match en **"En direct"**, ajuster la minute de jeu, ajouter des buts un par un (le score se met à jour tout seul).
   - Ajouter / modifier / supprimer des lignes de classement (J, BM, BE, Pts).
   - Ajouter / modifier / supprimer des buteurs.
-- Toutes les modifications sont enregistrées immédiatement dans la base et visibles par tous.
+  - Depuis l'onglet **Finales**, créer la finale Pointe-Noire (1er de chaque groupe) puis la grande finale contre Brazzaville, désigner le vainqueur.
+- Toutes les modifications sont enregistrées immédiatement dans la base et visibles par tous, avec rafraîchissement automatique côté visiteurs toutes les 12 secondes.
+
+## Si vous ne voyez aucun changement après un déploiement
+
+1. Vérifiez sur GitHub (dans le navigateur, pas juste en local) que le fichier `app/page.js` contient bien le mot `addEvent` — sinon les nouveaux fichiers n'ont pas été poussés.
+2. Dans Vercel, onglet **Deployments**, vérifiez que le dernier déploiement correspond bien au dernier commit (même heure) et que le statut est "Ready".
+3. Faites un rechargement forcé du navigateur (Ctrl+Maj+R / Cmd+Maj+R) pour vider le cache.
+4. Vérifiez que les migrations SQL (`db/migration_live.sql` et `db/migration_playoffs.sql`) ont bien été exécutées sur la même base que celle utilisée par le site déployé.
 
 ## Développement local
 

@@ -262,3 +262,24 @@ input.edit.minute{ width:50px; text-align:center; font-family:'JetBrains Mono'; 
 .ev-del:hover{ color:#ff8a8a; }
 
 .goal-form{ display:flex; gap:6px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06); flex-wrap:wrap; }
+
+/* ---------- playoff bracket ---------- */
+.bracket-intro{ color:var(--grey-300); font-size:14px; line-height:1.6; max-width:640px; margin:0 0 26px; }
+.bracket{ display:flex; align-items:stretch; gap:14px; flex-wrap:wrap; }
+.bracket-col{ display:flex; flex-direction:column; gap:14px; flex:1; min-width:200px; justify-content:center; }
+.bracket-col.wide{ flex:1.4; min-width:260px; }
+.bracket-arrow{ display:flex; align-items:center; justify-content:center; color:var(--grey-500); font-size:22px; font-family:'Oswald'; padding:0 2px; }
+@media (max-width:820px){ .bracket{ flex-direction:column; } .bracket-arrow{ transform:rotate(90deg); padding:6px 0; } }
+
+.bracket-slot{ background:var(--navy-900); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius); padding:14px 16px; }
+.bracket-slot h4{ font-size:11px; letter-spacing:0.08em; color:var(--grey-500); margin:0 0 8px; }
+.bracket-col.wide > h4{ font-size:12px; letter-spacing:0.08em; color:var(--gold-500); margin:0 0 10px; }
+.qualifier{ font-family:'Oswald'; font-size:17px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.q-tag{ font-family:'JetBrains Mono'; font-size:11px; color:var(--gold-500); background:rgba(240,168,60,0.12); padding:2px 8px; border-radius:10px; flex-shrink:0; }
+.empty.small{ padding:12px; font-size:12px; }
+
+.winner-note{
+  background:rgba(240,168,60,0.1); border:1px solid rgba(240,168,60,0.3); border-top:none;
+  color:var(--gold-500); font-size:12.5px; padding:8px 16px; margin-top:-10px; margin-bottom:10px;
+  border-radius:0 0 var(--radius) var(--radius); font-family:'Oswald'; letter-spacing:0.02em;
+}

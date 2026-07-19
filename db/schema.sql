@@ -9,7 +9,19 @@ CREATE TABLE IF NOT EXISTS matches (
   score_a INTEGER,
   score_b INTEGER,
   group_name TEXT NOT NULL DEFAULT 'A',
-  status TEXT NOT NULL DEFAULT 'upcoming' -- upcoming | live | done
+  status TEXT NOT NULL DEFAULT 'upcoming', -- upcoming | live | done
+  minute INTEGER,
+  phase TEXT NOT NULL DEFAULT 'groupes', -- groupes | finale_pn | finale_generale
+  winner TEXT -- nom de l'équipe gagnante (utile pour les matchs à élimination, en cas d'égalité/tirs au but)
+);
+
+CREATE TABLE IF NOT EXISTS events (
+  id SERIAL PRIMARY KEY,
+  match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  minute INTEGER NOT NULL,
+  team CHAR(1) NOT NULL, -- 'A' ou 'B'
+  scorer TEXT,
+  created_at TIMESTAMP DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS teams (

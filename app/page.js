@@ -6,6 +6,7 @@ const TABS = [
   { key: "accueil", label: "Accueil" },
   { key: "programme", label: "Programme" },
   { key: "classements", label: "Classements" },
+  { key: "finales", label: "Finales" },
   { key: "buteurs", label: "Buteurs" }
 ];
 
@@ -172,6 +173,25 @@ export default function Page() {
       setMatches(m => m.filter(x => x.id !== id));
     } catch (e) {}
   }
+  async function createPlayoffMatch(phase, teamA, teamB) {
+    try {
+      const created = await apiMutate("/api/matches", "POST", {
+        date: new Date().toISOString().slice(0, 10),
+        time: "15:00",
+        teamA,
+        teamB,
+        scoreA: null,
+        scoreB: null,
+        group: phase === "finale_pn" ? "Finale Pointe-Noire" : "Grande Finale",
+        status: "upcoming",
+        minute: null,
+        phase,
+        winner: null
+      });
+      setMatches(m => [...m, created]);
+      showToast("Match créé — modifiez la date et l'heure");
+    } catch (e) {}
+  }
 
   // ---------- live goal events ----------
   async function addEvent(matchId, { minute, team, scorer }) {
@@ -276,8 +296,17 @@ export default function Page() {
   const nextMatch = live || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
   const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
   const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
+  function groupLeader(list) {
+    if (list.length === 0) return null;
+    return [...list].sort((a, b) => b.pts - a.pts || (b.bm - b.be) - (a.bm - a.be) || b.bm - a.bm)[0];
+  }
+  const leaderA = groupLeader(groupA);
+  const leaderB = groupLeader(groupB);
+  const finalePN = matches.find(m => m.phase === "finale_pn");
+  const finaleGen = matches.find(m => m.phase === "finale_generale");
+  const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
-  const matchesByDate = sortedMatches.reduce((acc, m) => {
+  const matchesByDate = groupStageMatches.reduce((acc, m) => {
     (acc[m.date] = acc[m.date] || []).push(m);
     return acc;
   }, {});
@@ -426,6 +455,76 @@ export default function Page() {
             <div className="groups-grid">
               <GroupTable title="Groupe A" teams={groupA} isAdmin={isAdmin} onUpdate={updateTeam} onDelete={deleteTeam} onAdd={() => addTeam("A")} />
               <GroupTable title="Groupe B" teams={groupB} isAdmin={isAdmin} onUpdate={updateTeam} onDelete={deleteTeam} onAdd={() => addTeam("B")} />
+            </div>
+          </section>
+        )}
+
+        {tab === "finales" && (
+          <section className="tab active">
+            <div className="section-head">
+              <h2>Phases finales</h2>
+              <div className="sub">Seule la 1ère place de chaque groupe se qualifie</div>
+            </div>
+            <p className="bracket-intro">
+              Le 1er du Groupe A affronte le 1er du Groupe B en <b>finale de Pointe-Noire</b>. Le vainqueur affronte ensuite le champion de Brazzaville pour le titre national.
+            </p>
+
+            <div className="bracket">
+              <div className="bracket-col">
+                <div className="bracket-slot">
+                  <h4>1er — Groupe A</h4>
+                  {leaderA ? (
+                    <div className="qualifier">{leaderA.name} <span className="q-tag">{leaderA.pts} pts</span></div>
+                  ) : (
+                    <div className="empty small">Aucune donnée</div>
+                  )}
+                </div>
+                <div className="bracket-slot">
+                  <h4>1er — Groupe B</h4>
+                  {leaderB ? (
+                    <div className="qualifier">{leaderB.name} <span className="q-tag">{leaderB.pts} pts</span></div>
+                  ) : (
+                    <div className="empty small">Aucune donnée</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bracket-arrow">→</div>
+
+              <div className="bracket-col wide">
+                <h4>Finale Pointe-Noire</h4>
+                {finalePN ? (
+                  <MatchCard m={finalePN} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                ) : isAdmin ? (
+                  <button
+                    className="btn primary small"
+                    disabled={!leaderA || !leaderB}
+                    onClick={() => createPlayoffMatch("finale_pn", leaderA?.name || "Vainqueur Groupe A", leaderB?.name || "Vainqueur Groupe B")}
+                  >
+                    + Créer la finale Pointe-Noire
+                  </button>
+                ) : (
+                  <div className="empty small">Finale pas encore programmée</div>
+                )}
+              </div>
+
+              <div className="bracket-arrow">→</div>
+
+              <div className="bracket-col wide">
+                <h4>Grande Finale · vs Brazzaville</h4>
+                {finaleGen ? (
+                  <MatchCard m={finaleGen} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                ) : isAdmin ? (
+                  <button
+                    className="btn primary small"
+                    onClick={() => createPlayoffMatch("finale_generale", finalePN?.winner || "Vainqueur Pointe-Noire", "Vainqueur Brazzaville")}
+                  >
+                    + Créer la grande finale
+                  </button>
+                ) : (
+                  <div className="empty small">Grande finale pas encore programmée</div>
+                )}
+              </div>
             </div>
           </section>
         )}
@@ -579,6 +678,8 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
   const hasScore = m.scoreA !== null && m.scoreA !== undefined && m.scoreB !== null && m.scoreB !== undefined;
   const statusClass = m.status === "done" ? "status-done" : m.status === "live" ? "status-live" : "status-upcoming";
   const statusLabel = m.status === "done" ? "Terminé" : m.status === "live" ? "En direct" : "À venir";
+  const isKnockout = m.phase && m.phase !== "groupes";
+  const phaseLabel = m.phase === "finale_pn" ? "Finale Pointe-Noire" : m.phase === "finale_generale" ? "Grande Finale" : `Groupe ${m.group}`;
 
   return (
     <div className={`match-card-wrap${isLive ? " is-live" : ""}`}>
@@ -593,15 +694,24 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
             <input className="edit score" type="number" value={m.scoreB ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreB: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
             <input className="edit team" defaultValue={m.teamB} onChange={e => onUpdate(m.id, { teamB: e.target.value })} />
           </div>
-          <select className="edit" defaultValue={m.group} onChange={e => onUpdate(m.id, { group: e.target.value })}>
-            <option value="A">Groupe A</option>
-            <option value="B">Groupe B</option>
-          </select>
+          {!isKnockout && (
+            <select className="edit" defaultValue={m.group} onChange={e => onUpdate(m.id, { group: e.target.value })}>
+              <option value="A">Groupe A</option>
+              <option value="B">Groupe B</option>
+            </select>
+          )}
           <select className="edit" defaultValue={m.status} onChange={e => onUpdate(m.id, { status: e.target.value })}>
             <option value="upcoming">À venir</option>
             <option value="live">En direct</option>
             <option value="done">Terminé</option>
           </select>
+          {isKnockout && (
+            <select className="edit" defaultValue={m.winner || ""} onChange={e => onUpdate(m.id, { winner: e.target.value || null })}>
+              <option value="">Vainqueur ?</option>
+              <option value={m.teamA}>{m.teamA}</option>
+              <option value={m.teamB}>{m.teamB}</option>
+            </select>
+          )}
           {isLive && (
             <div className="minute-control">
               <input className="edit minute" type="number" min="0" value={m.minute ?? 0} onChange={e => onUpdate(m.id, { minute: parseInt(e.target.value, 10) || 0 })} />
@@ -635,10 +745,14 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
             <span className="nm">{m.teamB}</span>
           </div>
           <div className="match-tags">
-            <span className="tag">Groupe {m.group}</span>
+            <span className="tag">{phaseLabel}</span>
             <span className={`tag ${statusClass}`}>{statusLabel}</span>
           </div>
         </div>
+      )}
+
+      {isKnockout && m.winner && (
+        <div className="winner-note">🏆 Qualifié : <b>{m.winner}</b></div>
       )}
 
       {expanded && (

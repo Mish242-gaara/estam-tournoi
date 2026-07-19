@@ -18,7 +18,9 @@ export async function PUT(req, { params }) {
       score_b = ${body.scoreB},
       group_name = ${body.group},
       status = ${body.status},
-      minute = ${body.minute ?? null}
+      minute = ${body.minute ?? null},
+      phase = ${body.phase || "groupes"},
+      winner = ${body.winner || null}
     WHERE id = ${params.id}
     RETURNING *`;
   if (rows.length === 0) {
