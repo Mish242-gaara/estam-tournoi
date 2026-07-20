@@ -24,8 +24,8 @@ export async function POST(req) {
   const body = await req.json();
   const sql = getDb();
   const rows = await sql`
-    INSERT INTO matches (date, time, team_a, team_b, score_a, score_b, group_name, status, minute, phase, winner)
-    VALUES (${body.date}, ${body.time}, ${body.teamA}, ${body.teamB}, ${body.scoreA}, ${body.scoreB}, ${body.group}, ${body.status}, ${body.minute ?? null}, ${body.phase || "groupes"}, ${body.winner || null})
+    INSERT INTO matches (date, time, team_a, team_b, score_a, score_b, group_name, status, minute, phase, winner, slot)
+    VALUES (${body.date}, ${body.time}, ${body.teamA}, ${body.teamB}, ${body.scoreA}, ${body.scoreB}, ${body.group}, ${body.status}, ${body.minute ?? null}, ${body.phase || "groupes"}, ${body.winner || null}, ${body.slot ?? null})
     RETURNING *`;
   return Response.json({ ...mapMatch(rows[0]), events: [] }, { status: 201 });
 }

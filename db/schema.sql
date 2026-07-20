@@ -11,8 +11,9 @@ CREATE TABLE IF NOT EXISTS matches (
   group_name TEXT NOT NULL DEFAULT 'A',
   status TEXT NOT NULL DEFAULT 'upcoming', -- upcoming | live | done
   minute INTEGER,
-  phase TEXT NOT NULL DEFAULT 'groupes', -- groupes | finale_pn | finale_generale
-  winner TEXT -- nom de l'équipe gagnante (utile pour les matchs à élimination, en cas d'égalité/tirs au but)
+  phase TEXT NOT NULL DEFAULT 'groupes', -- groupes | demi | quarts | huitiemes | finale_pn | finale_generale
+  winner TEXT, -- nom de l'équipe gagnante (utile pour les matchs à élimination, en cas d'égalité/tirs au but)
+  slot INTEGER -- ordre du match au sein de son tour (demi 1, demi 2, ...)
 );
 
 CREATE TABLE IF NOT EXISTS events (

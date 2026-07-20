@@ -283,3 +283,18 @@ input.edit.minute{ width:50px; text-align:center; font-family:'JetBrains Mono'; 
   color:var(--gold-500); font-size:12.5px; padding:8px 16px; margin-top:-10px; margin-bottom:10px;
   border-radius:0 0 var(--radius) var(--radius); font-family:'Oswald'; letter-spacing:0.02em;
 }
+
+/* ---------- qualifiers + multi-round bracket ---------- */
+.qualifiers-grid{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:30px; }
+.qualifiers-grid .bracket-slot{ flex:1; min-width:200px; }
+.qual-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.qual-list li{ font-size:14px; display:flex; align-items:center; gap:8px; }
+.q-rank{ font-family:'JetBrains Mono'; font-size:10.5px; color:var(--navy-950); background:var(--grey-300); padding:1px 6px; border-radius:8px; font-weight:700; }
+.qual-list li:first-child .q-rank{ background:var(--gold-500); }
+
+.bracket-flow{ display:flex; gap:18px; overflow-x:auto; padding-bottom:8px; }
+.round-block{ flex:0 0 260px; min-width:260px; }
+.round-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.round-head h3{ font-size:14px; margin:0; color:var(--gold-500); }
+.round-count{ font-family:'JetBrains Mono'; font-size:11px; color:var(--grey-500); }
+.round-matches{ display:flex; flex-direction:column; gap:10px; }

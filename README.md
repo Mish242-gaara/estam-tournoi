@@ -39,21 +39,32 @@ l'éditeur SQL de Neon, sans passer par le script Node.)
 
 ## 4. Utilisation au quotidien
 
-- N'importe quel visiteur voit le programme, les classements et les buteurs en lecture seule.
+- N'importe quel visiteur voit le programme, les classements, les phases finales et les buteurs en lecture seule.
 - Un organisateur clique sur **"Mode organisateur"**, entre le code (`ADMIN_PIN`), et peut :
   - Ajouter / modifier / supprimer des matchs (date, heure, équipes, score, statut, groupe).
   - Passer un match en **"En direct"**, ajuster la minute de jeu, ajouter des buts un par un (le score se met à jour tout seul).
   - Ajouter / modifier / supprimer des lignes de classement (J, BM, BE, Pts).
   - Ajouter / modifier / supprimer des buteurs.
-  - Depuis l'onglet **Finales**, créer la finale Pointe-Noire (1er de chaque groupe) puis la grande finale contre Brazzaville, désigner le vainqueur.
+  - Depuis l'onglet **Finales**, créer automatiquement le bon tour à élimination (demi-finales, quarts, etc.) en fonction du nombre de groupes, puis la grande finale contre Brazzaville.
 - Toutes les modifications sont enregistrées immédiatement dans la base et visibles par tous, avec rafraîchissement automatique côté visiteurs toutes les 12 secondes.
+
+### Phases finales — comment ça marche
+
+- **2 équipes se qualifient par groupe** (1ère et 2e place du classement).
+- Le site calcule automatiquement le nombre total de qualifiés (2 × nombre de groupes) et en déduit le bon tour de départ :
+  - 2 groupes (4 qualifiés) → Demi-finales → Finale Pointe-Noire
+  - 4 groupes (8 qualifiés) → Quarts de finale → Demi-finales → Finale Pointe-Noire
+  - 8 groupes (16 qualifiés) → Huitièmes → Quarts → Demi-finales → Finale Pointe-Noire
+- Le tirage du premier tour croise les groupes (1er d'un groupe contre 2e d'un autre) pour éviter que deux équipes du même groupe ne se rencontrent tout de suite.
+- Chaque tour ne peut être créé qu'une fois le tour précédent entièrement joué et son vainqueur désigné (sélecteur "Vainqueur" sur chaque match à élimination, utile en cas d'égalité + tirs au but).
+- Une fois la Finale Pointe-Noire jouée, créez la Grande Finale : le nom de l'adversaire de Brazzaville se saisit manuellement (ce site ne suit pas leur bracket).
 
 ## Si vous ne voyez aucun changement après un déploiement
 
-1. Vérifiez sur GitHub (dans le navigateur, pas juste en local) que le fichier `app/page.js` contient bien le mot `addEvent` — sinon les nouveaux fichiers n'ont pas été poussés.
+1. Vérifiez sur GitHub (dans le navigateur, pas juste en local) que le fichier `app/page.js` contient bien le mot `roundPlan` — sinon les nouveaux fichiers n'ont pas été poussés.
 2. Dans Vercel, onglet **Deployments**, vérifiez que le dernier déploiement correspond bien au dernier commit (même heure) et que le statut est "Ready".
 3. Faites un rechargement forcé du navigateur (Ctrl+Maj+R / Cmd+Maj+R) pour vider le cache.
-4. Vérifiez que les migrations SQL (`db/migration_live.sql` et `db/migration_playoffs.sql`) ont bien été exécutées sur la même base que celle utilisée par le site déployé.
+4. Vérifiez que **les trois migrations SQL** (`db/migration_live.sql`, `db/migration_playoffs.sql`, `db/migration_bracket.sql`) ont bien été exécutées, dans cet ordre, sur la même base que celle utilisée par le site déployé.
 
 ## Développement local
 

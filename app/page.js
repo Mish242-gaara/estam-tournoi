@@ -10,6 +10,63 @@ const TABS = [
   { key: "buteurs", label: "Buteurs" }
 ];
 
+const PHASE_LABELS = {
+  finale_pn: "Finale Pointe-Noire",
+  finale_generale: "Grande Finale",
+  demi: "Demi-finale",
+  quarts: "Quart de finale",
+  huitiemes: "Huitième de finale",
+  seiziemes: "Seizième de finale"
+};
+function phaseLabelFor(m) {
+  if (!m.phase || m.phase === "groupes") return `Groupe ${m.group}`;
+  return PHASE_LABELS[m.phase] || m.group || m.phase;
+}
+
+// 2 qualifiés par groupe (1er + 2e), classés par points puis différence de buts puis buts marqués.
+function computeQualifiers(teams, group) {
+  return teams
+    .filter(t => t.group === group)
+    .sort((a, b) => b.pts - a.pts || (b.bm - b.be) - (a.bm - a.be) || b.bm - a.bm)
+    .slice(0, 2);
+}
+
+// Détermine automatiquement la suite des tours à élimination directe en fonction
+// du nombre total de qualifiés (2 par groupe), jusqu'à la finale de Pointe-Noire.
+function roundsForQualifierCount(n) {
+  const rounds = [];
+  let c = n;
+  while (c > 2) {
+    let key, label;
+    if (c >= 32) { key = "seiziemes"; label = "Seizièmes de finale"; }
+    else if (c === 16) { key = "huitiemes"; label = "Huitièmes de finale"; }
+    else if (c === 8) { key = "quarts"; label = "Quarts de finale"; }
+    else if (c === 4) { key = "demi"; label = "Demi-finales"; }
+    else { key = `tour${c}`; label = `Tour à ${c} équipes`; }
+    rounds.push({ key, label, matchCount: Math.floor(c / 2) });
+    c = Math.floor(c / 2);
+  }
+  rounds.push({ key: "finale_pn", label: "Finale Pointe-Noire", matchCount: 1 });
+  return rounds;
+}
+
+// Tirage croisé du premier tour : le 1er d'un groupe affronte le 2e d'un autre groupe,
+// pour éviter que deux équipes du même groupe ne se rencontrent tout de suite.
+function crossSeedFirstRound(qualifiersByGroup) {
+  const pairs = [];
+  for (let i = 0; i < qualifiersByGroup.length; i += 2) {
+    const gA = qualifiersByGroup[i];
+    const gB = qualifiersByGroup[i + 1];
+    if (!gB) {
+      if (gA.teams[0] && gA.teams[1]) pairs.push([gA.teams[0].name, gA.teams[1].name]);
+      continue;
+    }
+    if (gA.teams[0] && gB.teams[1]) pairs.push([gA.teams[0].name, gB.teams[1].name]);
+    if (gB.teams[0] && gA.teams[1]) pairs.push([gB.teams[0].name, gA.teams[1].name]);
+  }
+  return pairs;
+}
+
 function formatDate(iso) {
   if (!iso) return "";
   const d = new Date(iso + "T00:00:00");
@@ -173,23 +230,28 @@ export default function Page() {
       setMatches(m => m.filter(x => x.id !== id));
     } catch (e) {}
   }
-  async function createPlayoffMatch(phase, teamA, teamB) {
+  async function createRound(roundKey, roundLabel, pairings) {
     try {
-      const created = await apiMutate("/api/matches", "POST", {
-        date: new Date().toISOString().slice(0, 10),
-        time: "15:00",
-        teamA,
-        teamB,
-        scoreA: null,
-        scoreB: null,
-        group: phase === "finale_pn" ? "Finale Pointe-Noire" : "Grande Finale",
-        status: "upcoming",
-        minute: null,
-        phase,
-        winner: null
-      });
-      setMatches(m => [...m, created]);
-      showToast("Match créé — modifiez la date et l'heure");
+      const created = await Promise.all(
+        pairings.map((pair, idx) =>
+          apiMutate("/api/matches", "POST", {
+            date: new Date().toISOString().slice(0, 10),
+            time: "15:00",
+            teamA: pair[0],
+            teamB: pair[1],
+            scoreA: null,
+            scoreB: null,
+            group: roundLabel,
+            status: "upcoming",
+            minute: null,
+            phase: roundKey,
+            winner: null,
+            slot: idx + 1
+          })
+        )
+      );
+      setMatches(m => [...m, ...created]);
+      showToast(`${roundLabel} créées — modifiez les dates si besoin`);
     } catch (e) {}
   }
 
@@ -296,14 +358,16 @@ export default function Page() {
   const nextMatch = live || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
   const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
   const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
-  function groupLeader(list) {
-    if (list.length === 0) return null;
-    return [...list].sort((a, b) => b.pts - a.pts || (b.bm - b.be) - (a.bm - a.be) || b.bm - a.bm)[0];
-  }
-  const leaderA = groupLeader(groupA);
-  const leaderB = groupLeader(groupB);
-  const finalePN = matches.find(m => m.phase === "finale_pn");
+
+  // Phases finales : 2 qualifiés par groupe. Le nombre de groupes détermine automatiquement
+  // le premier tour (2 groupes → demi-finales, 4 groupes → quarts, etc.), jusqu'à la finale
+  // de Pointe-Noire, puis la grande finale contre Brazzaville.
+  const groupsList = Array.from(new Set(teams.map(t => t.group))).filter(Boolean).sort();
+  const qualifiersByGroup = groupsList.map(g => ({ group: g, teams: computeQualifiers(teams, g) }));
+  const totalQualifiers = groupsList.length * 2;
+  const roundPlan = totalQualifiers >= 2 ? roundsForQualifierCount(totalQualifiers) : [];
   const finaleGen = matches.find(m => m.phase === "finale_generale");
+
   const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
@@ -463,69 +527,102 @@ export default function Page() {
           <section className="tab active">
             <div className="section-head">
               <h2>Phases finales</h2>
-              <div className="sub">Seule la 1ère place de chaque groupe se qualifie</div>
+              <div className="sub">Les 2 premiers de chaque groupe se qualifient</div>
             </div>
             <p className="bracket-intro">
-              Le 1er du Groupe A affronte le 1er du Groupe B en <b>finale de Pointe-Noire</b>. Le vainqueur affronte ensuite le champion de Brazzaville pour le titre national.
+              {groupsList.length} groupe{groupsList.length > 1 ? "s" : ""} → <b>{totalQualifiers} équipes qualifiées</b>.
+              Le tournoi enchaîne automatiquement les tours à élimination directe jusqu'à la <b>finale de Pointe-Noire</b>,
+              dont le vainqueur affronte le champion de Brazzaville pour le titre national.
             </p>
 
-            <div className="bracket">
-              <div className="bracket-col">
-                <div className="bracket-slot">
-                  <h4>1er — Groupe A</h4>
-                  {leaderA ? (
-                    <div className="qualifier">{leaderA.name} <span className="q-tag">{leaderA.pts} pts</span></div>
-                  ) : (
+            <div className="qualifiers-grid">
+              {qualifiersByGroup.map(g => (
+                <div className="bracket-slot" key={g.group}>
+                  <h4>Groupe {g.group}</h4>
+                  {g.teams.length === 0 ? (
                     <div className="empty small">Aucune donnée</div>
+                  ) : (
+                    <ul className="qual-list">
+                      {g.teams.map((t, i) => (
+                        <li key={t.id}>
+                          <span className="q-rank">{i === 0 ? "1er" : "2e"}</span> {t.name} <span className="q-tag">{t.pts} pts</span>
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-                <div className="bracket-slot">
-                  <h4>1er — Groupe B</h4>
-                  {leaderB ? (
-                    <div className="qualifier">{leaderB.name} <span className="q-tag">{leaderB.pts} pts</span></div>
-                  ) : (
-                    <div className="empty small">Aucune donnée</div>
-                  )}
-                </div>
-              </div>
+              ))}
+            </div>
 
-              <div className="bracket-arrow">→</div>
+            <div className="bracket-flow">
+              {roundPlan.map((round, idx) => {
+                const roundMatches = matches.filter(m => m.phase === round.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+                let pairings = [];
+                let canCreate = false;
 
-              <div className="bracket-col wide">
-                <h4>Finale Pointe-Noire</h4>
-                {finalePN ? (
-                  <MatchCard m={finalePN} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
-                ) : isAdmin ? (
+                if (roundMatches.length === 0) {
+                  if (idx === 0) {
+                    pairings = crossSeedFirstRound(qualifiersByGroup);
+                    canCreate = pairings.length === round.matchCount && pairings.every(p => p[0] && p[1]);
+                  } else {
+                    const prevRound = roundPlan[idx - 1];
+                    const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+                    if (prevMatches.length === prevRound.matchCount) {
+                      for (let i = 0; i < prevMatches.length; i += 2) {
+                        const a = prevMatches[i];
+                        const b = prevMatches[i + 1];
+                        pairings.push([a?.winner || `Vainqueur (${a?.teamA} / ${a?.teamB})`, b?.winner || `Vainqueur (${b?.teamA} / ${b?.teamB})`]);
+                      }
+                      canCreate = true;
+                    }
+                  }
+                }
+
+                return (
+                  <div className="round-block" key={round.key}>
+                    <div className="round-head">
+                      <h3>{round.label}</h3>
+                      <span className="round-count">{round.matchCount} match{round.matchCount > 1 ? "s" : ""}</span>
+                    </div>
+                    {roundMatches.length > 0 ? (
+                      <div className="round-matches">
+                        {roundMatches.map(m => (
+                          <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                        ))}
+                      </div>
+                    ) : canCreate && isAdmin ? (
+                      <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings)}>
+                        + Créer {round.label.toLowerCase()}
+                      </button>
+                    ) : (
+                      <div className="empty small">{canCreate ? "Pas encore créé" : "En attente du tour précédent"}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="section-head" style={{ marginTop: 34 }}>
+              <h2>Grande Finale · vs Brazzaville</h2>
+            </div>
+            {(() => {
+              const finalePN = matches.find(m => m.phase === "finale_pn");
+              if (finaleGen) {
+                return <MatchCard m={finaleGen} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />;
+              }
+              if (isAdmin) {
+                return (
                   <button
                     className="btn primary small"
-                    disabled={!leaderA || !leaderB}
-                    onClick={() => createPlayoffMatch("finale_pn", leaderA?.name || "Vainqueur Groupe A", leaderB?.name || "Vainqueur Groupe B")}
-                  >
-                    + Créer la finale Pointe-Noire
-                  </button>
-                ) : (
-                  <div className="empty small">Finale pas encore programmée</div>
-                )}
-              </div>
-
-              <div className="bracket-arrow">→</div>
-
-              <div className="bracket-col wide">
-                <h4>Grande Finale · vs Brazzaville</h4>
-                {finaleGen ? (
-                  <MatchCard m={finaleGen} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
-                ) : isAdmin ? (
-                  <button
-                    className="btn primary small"
-                    onClick={() => createPlayoffMatch("finale_generale", finalePN?.winner || "Vainqueur Pointe-Noire", "Vainqueur Brazzaville")}
+                    disabled={!finalePN}
+                    onClick={() => createRound("finale_generale", "Grande Finale", [[finalePN?.winner || "Vainqueur Pointe-Noire", "Vainqueur Brazzaville"]])}
                   >
                     + Créer la grande finale
                   </button>
-                ) : (
-                  <div className="empty small">Grande finale pas encore programmée</div>
-                )}
-              </div>
-            </div>
+                );
+              }
+              return <div className="empty small">Grande finale pas encore programmée</div>;
+            })()}
           </section>
         )}
 
@@ -679,7 +776,7 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
   const statusClass = m.status === "done" ? "status-done" : m.status === "live" ? "status-live" : "status-upcoming";
   const statusLabel = m.status === "done" ? "Terminé" : m.status === "live" ? "En direct" : "À venir";
   const isKnockout = m.phase && m.phase !== "groupes";
-  const phaseLabel = m.phase === "finale_pn" ? "Finale Pointe-Noire" : m.phase === "finale_generale" ? "Grande Finale" : `Groupe ${m.group}`;
+  const phaseLabel = phaseLabelFor(m);
 
   return (
     <div className={`match-card-wrap${isLive ? " is-live" : ""}`}>

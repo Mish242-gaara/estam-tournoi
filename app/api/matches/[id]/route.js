@@ -20,7 +20,8 @@ export async function PUT(req, { params }) {
       status = ${body.status},
       minute = ${body.minute ?? null},
       phase = ${body.phase || "groupes"},
-      winner = ${body.winner || null}
+      winner = ${body.winner || null},
+      slot = ${body.slot ?? null}
     WHERE id = ${params.id}
     RETURNING *`;
   if (rows.length === 0) {
