@@ -140,28 +140,40 @@ section.tab.active{ display:block; }
 
 .match-card{
   background:var(--navy-900); border:1px solid rgba(255,255,255,0.07); border-radius:var(--radius);
-  padding:14px 18px; margin-bottom:10px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:14px 18px; margin-bottom:10px; display:flex; align-items:center; gap:10px 12px; flex-wrap:wrap;
 }
+.match-card > *{ min-width:0; }
 .match-time{ font-family:'JetBrains Mono'; font-size:14px; color:var(--grey-300); min-width:56px; }
-.match-teams{ flex:1; display:flex; align-items:center; justify-content:center; gap:14px; min-width:220px; font-family:'Oswald'; font-size:17px; }
-.match-teams .nm{ min-width:90px; text-align:center; }
-.match-teams .sc{ font-family:'JetBrains Mono'; font-weight:700; color:var(--gold-500); min-width:44px; text-align:center; font-size:19px; }
+.match-teams{ flex:1 1 280px; display:flex; align-items:center; justify-content:center; gap:8px; min-width:0; flex-wrap:wrap; font-family:'Oswald'; font-size:17px; }
+.match-teams .nm{ flex:1 1 90px; min-width:0; text-align:center; }
+.match-teams .sc{ font-family:'JetBrains Mono'; font-weight:700; color:var(--gold-500); min-width:32px; text-align:center; font-size:19px; }
 .match-teams .sep{ color:var(--grey-500); font-size:12px; font-family:'Oswald'; }
-.match-tags{ display:flex; gap:6px; align-items:center; }
+.match-tags{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
 .tag{ font-family:'Oswald'; font-size:10.5px; letter-spacing:0.06em; padding:3px 9px; border-radius:12px; background:rgba(255,255,255,0.07); color:var(--grey-300); }
 .tag.status-done{ background:rgba(139,145,184,0.18); }
 .tag.status-live{ background:rgba(212,27,43,0.2); color:#ff9d9d; }
 .tag.status-upcoming{ background:rgba(56,184,118,0.15); color:var(--success); }
-.match-admin{ display:flex; gap:6px; }
+.match-admin{ display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; }
 
 input.edit, select.edit{
   background:var(--navy-800); border:1px solid var(--navy-600); color:white; border-radius:6px;
-  padding:5px 8px; font-family:inherit; font-size:13px;
+  padding:5px 8px; font-family:inherit; font-size:13px; box-sizing:border-box; max-width:100%;
 }
-input.edit.score{ width:44px; text-align:center; font-family:'JetBrains Mono'; }
-input.edit.team{ width:100px; }
+input.edit.score{ width:44px; min-width:44px; text-align:center; font-family:'JetBrains Mono'; }
+input.edit.team{ width:100px; max-width:100%; }
 input.edit.time{ width:60px; }
 input.edit.date{ width:130px; }
+
+@media (max-width:780px){
+  .match-card{ padding:12px 14px; }
+  .match-teams{ width:100%; justify-content:center; }
+  .match-teams .nm{ flex-basis:100%; order:2; }
+  .match-teams .sep{ order:1; }
+  .match-teams .sc{ order:3; }
+  .match-teams .edit.team{ width:100%; max-width:none; }
+  .match-admin{ width:100%; margin-left:0; }
+  .minute-control{ flex-wrap:wrap; }
+}
 
 .groups-grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 @media (max-width:700px){ .groups-grid{ grid-template-columns:1fr; } }
