@@ -33,20 +33,29 @@ function computeQualifiers(teams, group) {
 
 // Détermine automatiquement la suite des tours à élimination directe en fonction
 // du nombre total de qualifiés (2 par groupe), jusqu'à la finale de Pointe-Noire.
+function nextPowerOfTwo(value) {
+  if (value <= 1) return 1;
+  return 2 ** Math.ceil(Math.log2(value));
+}
+
 function roundsForQualifierCount(n) {
+  const bracketSize = nextPowerOfTwo(Math.max(n, 2));
   const rounds = [];
-  let c = n;
-  while (c > 2) {
+  let remaining = bracketSize;
+
+  while (remaining > 1) {
     let key, label;
-    if (c >= 32) { key = "seiziemes"; label = "Seizièmes de finale"; }
-    else if (c === 16) { key = "huitiemes"; label = "Huitièmes de finale"; }
-    else if (c === 8) { key = "quarts"; label = "Quarts de finale"; }
-    else if (c === 4) { key = "demi"; label = "Demi-finales"; }
-    else { key = `tour${c}`; label = `Tour à ${c} équipes`; }
-    rounds.push({ key, label, matchCount: Math.floor(c / 2) });
-    c = Math.floor(c / 2);
+    if (remaining === 2) { key = "finale_pn"; label = "Finale Pointe-Noire"; }
+    else if (remaining === 4) { key = "demi"; label = "Demi-finales"; }
+    else if (remaining === 8) { key = "quarts"; label = "Quarts de finale"; }
+    else if (remaining === 16) { key = "huitiemes"; label = "Huitièmes de finale"; }
+    else if (remaining === 32) { key = "seiziemes"; label = "Seizièmes de finale"; }
+    else { key = `tour${remaining}`; label = `Tour à ${remaining} équipes`; }
+
+    rounds.push({ key, label, matchCount: remaining / 2 });
+    remaining /= 2;
   }
-  rounds.push({ key: "finale_pn", label: "Finale Pointe-Noire", matchCount: 1 });
+
   return rounds;
 }
 
@@ -368,6 +377,48 @@ export default function Page() {
   const roundPlan = totalQualifiers >= 2 ? roundsForQualifierCount(totalQualifiers) : [];
   const finaleGen = matches.find(m => m.phase === "finale_generale");
 
+  useEffect(() => {
+    if (!isAdmin || loading || roundPlan.length === 0) return;
+
+    const ensurePlayoffRounds = async () => {
+      for (let idx = 0; idx < roundPlan.length; idx += 1) {
+        const round = roundPlan[idx];
+        const roundMatches = matches.filter(m => m.phase === round.key);
+        if (roundMatches.length > 0) continue;
+
+        if (idx === 0) {
+          const pairings = crossSeedFirstRound(qualifiersByGroup).slice(0, round.matchCount);
+          if (pairings.length === round.matchCount && pairings.every(p => p[0] && p[1])) {
+            await createRound(round.key, round.label, pairings);
+            return;
+          }
+          continue;
+        }
+
+        const prevRound = roundPlan[idx - 1];
+        const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+        if (prevMatches.length !== prevRound.matchCount) continue;
+
+        const pairings = [];
+        for (let i = 0; i < prevMatches.length; i += 2) {
+          const a = prevMatches[i];
+          const b = prevMatches[i + 1];
+          if (!a || !b) continue;
+          const leftWinner = a.winner || `Vainqueur (${a.teamA} / ${a.teamB})`;
+          const rightWinner = b.winner || `Vainqueur (${b.teamA} / ${b.teamB})`;
+          if (leftWinner && rightWinner) pairings.push([leftWinner, rightWinner]);
+        }
+
+        if (pairings.length > 0) {
+          await createRound(round.key, round.label, pairings.slice(0, round.matchCount));
+          return;
+        }
+      }
+    };
+
+    ensurePlayoffRounds();
+  }, [isAdmin, loading, matches, qualifiersByGroup, roundPlan]);
+
   const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
@@ -579,24 +630,55 @@ export default function Page() {
                 }
 
                 return (
-                  <div className="round-block" key={round.key}>
-                    <div className="round-head">
-                      <h3>{round.label}</h3>
-                      <span className="round-count">{round.matchCount} match{round.matchCount > 1 ? "s" : ""}</span>
-                    </div>
-                    {roundMatches.length > 0 ? (
-                      <div className="round-matches">
-                        {roundMatches.map(m => (
-                          <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
-                        ))}
+                  <div className="round-column" key={round.key}>
+                    <div className="round-block">
+                      <div className="round-head">
+                        <h3>{round.label}</h3>
+                        <span className="round-count">{round.matchCount} match{round.matchCount > 1 ? "s" : ""}</span>
                       </div>
-                    ) : canCreate && isAdmin ? (
-                      <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings)}>
-                        + Créer {round.label.toLowerCase()}
-                      </button>
-                    ) : (
-                      <div className="empty small">{canCreate ? "Pas encore créé" : "En attente du tour précédent"}</div>
-                    )}
+                      {roundMatches.length > 0 ? (
+                        <div className="round-matches">
+                          {roundMatches.map(m => (
+                            <div className="round-match-shell" key={m.id}>
+                              <div className="round-preview-card">
+                                <div className="round-preview-top">
+                                  <span className="round-preview-label">Rencontre</span>
+                                  <span className="round-preview-badge">{m.status === "done" ? "Terminé" : m.status === "live" ? "En direct" : "À venir"}</span>
+                                </div>
+                                <div className="round-preview-teams">
+                                  <span className="round-preview-team">{m.teamA}</span>
+                                  <span className="round-preview-vs">VS</span>
+                                  <span className="round-preview-team">{m.teamB}</span>
+                                </div>
+                              </div>
+                              <MatchCard m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                            </div>
+                          ))}
+                        </div>
+                      ) : canCreate && isAdmin ? (
+                        <div className="round-preview-stack">
+                          {pairings.map((pair, index) => (
+                            <div className="round-preview-card" key={`${round.key}-${index}`}>
+                              <div className="round-preview-top">
+                                <span className="round-preview-label">Prévu</span>
+                                <span className="round-preview-badge">Match {index + 1}</span>
+                              </div>
+                              <div className="round-preview-teams">
+                                <span className="round-preview-team">{pair[0]}</span>
+                                <span className="round-preview-vs">VS</span>
+                                <span className="round-preview-team">{pair[1]}</span>
+                              </div>
+                            </div>
+                          ))}
+                          <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings)}>
+                            + Créer {round.label.toLowerCase()}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="empty small">{canCreate ? "Pas encore créé" : "En attente du tour précédent"}</div>
+                      )}
+                    </div>
+                    {idx < roundPlan.length - 1 && <div className="round-connector" aria-hidden="true">→</div>}
                   </div>
                 );
               })}

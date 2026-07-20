@@ -304,9 +304,21 @@ input.edit.minute{ width:50px; text-align:center; font-family:'JetBrains Mono'; 
 .q-rank{ font-family:'JetBrains Mono'; font-size:10.5px; color:var(--navy-950); background:var(--grey-300); padding:1px 6px; border-radius:8px; font-weight:700; }
 .qual-list li:first-child .q-rank{ background:var(--gold-500); }
 
-.bracket-flow{ display:flex; gap:18px; overflow-x:auto; padding-bottom:8px; }
-.round-block{ flex:0 0 260px; min-width:260px; }
-.round-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.bracket-flow{ display:flex; align-items:stretch; gap:16px; overflow-x:auto; padding-bottom:8px; }
+.round-column{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+.round-block{ flex:0 0 280px; min-width:280px; background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,0.16); }
+.round-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; }
 .round-head h3{ font-size:14px; margin:0; color:var(--gold-500); }
-.round-count{ font-family:'JetBrains Mono'; font-size:11px; color:var(--grey-500); }
+.round-count{ font-family:'JetBrains Mono'; font-size:11px; color:var(--grey-500); white-space:nowrap; }
 .round-matches{ display:flex; flex-direction:column; gap:10px; }
+.round-connector{ color:var(--gold-500); font-size:20px; line-height:1; flex-shrink:0; }
+.round-preview-card{ background:var(--navy-800); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; border-left:2px solid var(--gold-500); }
+.round-preview-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.round-preview-label{ font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--grey-500); }
+.round-preview-badge{ font-family:'JetBrains Mono'; font-size:10px; color:var(--gold-500); background:rgba(240,168,60,0.12); padding:2px 7px; border-radius:999px; }
+.round-preview-teams{ display:flex; align-items:center; justify-content:space-between; gap:8px; font-family:'Oswald'; font-size:13px; }
+.round-preview-team{ flex:1; min-width:0; }
+.round-preview-team:last-child{ text-align:right; }
+.round-preview-vs{ color:var(--grey-500); font-family:'JetBrains Mono'; font-size:10px; flex-shrink:0; }
+.round-preview-stack{ display:flex; flex-direction:column; gap:8px; }
+.round-match-shell{ display:flex; flex-direction:column; gap:8px; }
