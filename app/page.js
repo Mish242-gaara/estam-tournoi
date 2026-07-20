@@ -239,10 +239,12 @@ export default function Page() {
       setMatches(m => m.filter(x => x.id !== id));
     } catch (e) {}
   }
-  async function createRound(roundKey, roundLabel, pairings) {
+  async function createRound(roundKey, roundLabel, pairings, startIndex = 0) {
+    const pending = pairings.slice(startIndex);
+    if (pending.length === 0) return [];
     try {
       const created = await Promise.all(
-        pairings.map((pair, idx) =>
+        pending.map((pair, idx) =>
           apiMutate("/api/matches", "POST", {
             date: new Date().toISOString().slice(0, 10),
             time: "15:00",
@@ -255,13 +257,16 @@ export default function Page() {
             minute: null,
             phase: roundKey,
             winner: null,
-            slot: idx + 1
+            slot: startIndex + idx + 1
           })
         )
       );
       setMatches(m => [...m, ...created]);
       showToast(`${roundLabel} créées — modifiez les dates si besoin`);
-    } catch (e) {}
+      return created;
+    } catch (e) {
+      return [];
+    }
   }
 
   // ---------- live goal events ----------
@@ -383,34 +388,31 @@ export default function Page() {
     const ensurePlayoffRounds = async () => {
       for (let idx = 0; idx < roundPlan.length; idx += 1) {
         const round = roundPlan[idx];
-        const roundMatches = matches.filter(m => m.phase === round.key);
-        if (roundMatches.length > 0) continue;
+        const roundMatches = matches.filter(m => m.phase === round.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+        const missingCount = Math.max(0, round.matchCount - roundMatches.length);
 
+        if (missingCount === 0) continue;
+
+        let pairings = [];
         if (idx === 0) {
-          const pairings = crossSeedFirstRound(qualifiersByGroup).slice(0, round.matchCount);
-          if (pairings.length === round.matchCount && pairings.every(p => p[0] && p[1])) {
-            await createRound(round.key, round.label, pairings);
-            return;
+          pairings = crossSeedFirstRound(qualifiersByGroup).slice(0, round.matchCount);
+        } else {
+          const prevRound = roundPlan[idx - 1];
+          const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+          if (prevMatches.length !== prevRound.matchCount) continue;
+
+          for (let i = 0; i < prevMatches.length; i += 2) {
+            const a = prevMatches[i];
+            const b = prevMatches[i + 1];
+            if (!a || !b) continue;
+            const leftWinner = a.winner || `Vainqueur (${a.teamA} / ${a.teamB})`;
+            const rightWinner = b.winner || `Vainqueur (${b.teamA} / ${b.teamB})`;
+            if (leftWinner && rightWinner) pairings.push([leftWinner, rightWinner]);
           }
-          continue;
         }
 
-        const prevRound = roundPlan[idx - 1];
-        const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
-        if (prevMatches.length !== prevRound.matchCount) continue;
-
-        const pairings = [];
-        for (let i = 0; i < prevMatches.length; i += 2) {
-          const a = prevMatches[i];
-          const b = prevMatches[i + 1];
-          if (!a || !b) continue;
-          const leftWinner = a.winner || `Vainqueur (${a.teamA} / ${a.teamB})`;
-          const rightWinner = b.winner || `Vainqueur (${b.teamA} / ${b.teamB})`;
-          if (leftWinner && rightWinner) pairings.push([leftWinner, rightWinner]);
-        }
-
-        if (pairings.length > 0) {
-          await createRound(round.key, round.label, pairings.slice(0, round.matchCount));
+        if (pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1])) {
+          await createRound(round.key, round.label, pairings, roundMatches.length);
           return;
         }
       }
@@ -611,23 +613,23 @@ export default function Page() {
                 let pairings = [];
                 let canCreate = false;
 
-                if (roundMatches.length === 0) {
-                  if (idx === 0) {
-                    pairings = crossSeedFirstRound(qualifiersByGroup);
-                    canCreate = pairings.length === round.matchCount && pairings.every(p => p[0] && p[1]);
-                  } else {
-                    const prevRound = roundPlan[idx - 1];
-                    const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
-                    if (prevMatches.length === prevRound.matchCount) {
-                      for (let i = 0; i < prevMatches.length; i += 2) {
-                        const a = prevMatches[i];
-                        const b = prevMatches[i + 1];
-                        pairings.push([a?.winner || `Vainqueur (${a?.teamA} / ${a?.teamB})`, b?.winner || `Vainqueur (${b?.teamA} / ${b?.teamB})`]);
-                      }
-                      canCreate = true;
+                if (idx === 0) {
+                  pairings = crossSeedFirstRound(qualifiersByGroup);
+                  canCreate = pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1]);
+                } else {
+                  const prevRound = roundPlan[idx - 1];
+                  const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+                  if (prevMatches.length === prevRound.matchCount) {
+                    for (let i = 0; i < prevMatches.length; i += 2) {
+                      const a = prevMatches[i];
+                      const b = prevMatches[i + 1];
+                      pairings.push([a?.winner || `Vainqueur (${a?.teamA} / ${a?.teamB})`, b?.winner || `Vainqueur (${b?.teamA} / ${b?.teamB})`]);
                     }
+                    canCreate = pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1]);
                   }
                 }
+
+                const missingCount = Math.max(0, round.matchCount - roundMatches.length);
 
                 return (
                   <div className="round-column" key={round.key}>
@@ -654,6 +656,11 @@ export default function Page() {
                               <MatchCard m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
                             </div>
                           ))}
+                          {missingCount > 0 && isAdmin && canCreate && (
+                            <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings, roundMatches.length)}>
+                              + Ajouter {missingCount > 1 ? `${missingCount} matchs` : "le match manquant"}
+                            </button>
+                          )}
                         </div>
                       ) : canCreate && isAdmin ? (
                         <div className="round-preview-stack">
