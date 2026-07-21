@@ -1,4 +1,5 @@
-import { getDb, checkAdminPin, mapScorer } from "../../../lib/db";
+import { getDb, mapScorer } from "../../../lib/db";
+import { requireAdmin } from "../../../lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,8 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  if (!checkAdminPin(req)) {
+  const admin = await requireAdmin(req);
+  if (!admin) {
     return new Response(JSON.stringify({ error: "Non autorisé" }), { status: 401 });
   }
   const body = await req.json();

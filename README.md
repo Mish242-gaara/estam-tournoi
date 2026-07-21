@@ -37,16 +37,33 @@ l'éditeur SQL de Neon, sans passer par le script Node.)
    - `ADMIN_PIN` — le code que les organisateurs utiliseront pour activer le mode édition (ex. `ESTAM2026`, changez-le).
 4. Déployez. Le site est en ligne, tout le monde voit les mêmes données.
 
-## 4. Utilisation au quotidien
+## 4. Créer le premier compte administrateur
 
-- N'importe quel visiteur voit le programme, les classements, les phases finales et les buteurs en lecture seule.
-- Un organisateur clique sur **"Mode organisateur"**, entre le code (`ADMIN_PIN`), et peut :
+Le code `ADMIN_PIN` ne sert plus qu'à amorcer le tout premier compte admin (il n'y a plus de "mode organisateur" partagé par code — chacun a désormais son propre compte).
+
+1. Ouvrez `https://votre-site.vercel.app/bootstrap-admin`
+2. Entrez le code `ADMIN_PIN`, un nom, un email et un mot de passe
+3. Vous pouvez maintenant vous connecter normalement depuis la page d'accueil avec cet email/mot de passe
+
+Cette page reste accessible ensuite (elle sert aussi si vous voulez créer un deuxième compte admin), mais n'est jamais liée dans la navigation.
+
+## 5. Comptes et rôles
+
+- **Supporter (fan)** : inscription libre, activée immédiatement.
+- **Coach** : inscription libre, mais le compte reste **en attente** tant qu'un administrateur ne l'a pas validé depuis l'onglet **"Comptes"** (visible seulement pour les admins). Un coach choisit sa filière à l'inscription.
+- **Administrateur** : créé uniquement via `/bootstrap-admin`. Peut tout modifier (matchs, scores, classements, buteurs, phases finales) et valider/refuser les comptes coachs.
+
+## 6. Utilisation au quotidien
+
+- N'importe quel visiteur voit le programme, les classements, les phases finales et les buteurs en lecture seule, sans compte.
+- Un administrateur connecté peut :
   - Ajouter / modifier / supprimer des matchs (date, heure, équipes, score, statut, groupe).
   - Passer un match en **"En direct"**, ajuster la minute de jeu, ajouter des buts un par un (le score se met à jour tout seul).
-  - Ajouter / modifier / supprimer des lignes de classement (J, BM, BE, Pts).
-  - Ajouter / modifier / supprimer des buteurs.
+  - Ajouter / modifier / supprimer des lignes de classement (J, BM, BE, Pts) et des buteurs.
   - Depuis l'onglet **Finales**, créer automatiquement le bon tour à élimination (demi-finales, quarts, etc.) en fonction du nombre de groupes, puis la grande finale contre Brazzaville.
+  - Depuis l'onglet **Comptes**, valider ou refuser les inscriptions de coachs.
 - Toutes les modifications sont enregistrées immédiatement dans la base et visibles par tous, avec rafraîchissement automatique côté visiteurs toutes les 12 secondes.
+- Les comptes coach n'ont pas encore de fonctionnalités dédiées (gestion d'effectif, compositions) — c'est la prochaine étape prévue.
 
 ### Phases finales — comment ça marche
 
@@ -64,7 +81,8 @@ l'éditeur SQL de Neon, sans passer par le script Node.)
 1. Vérifiez sur GitHub (dans le navigateur, pas juste en local) que le fichier `app/page.js` contient bien le mot `roundPlan` — sinon les nouveaux fichiers n'ont pas été poussés.
 2. Dans Vercel, onglet **Deployments**, vérifiez que le dernier déploiement correspond bien au dernier commit (même heure) et que le statut est "Ready".
 3. Faites un rechargement forcé du navigateur (Ctrl+Maj+R / Cmd+Maj+R) pour vider le cache.
-4. Vérifiez que **les trois migrations SQL** (`db/migration_live.sql`, `db/migration_playoffs.sql`, `db/migration_bracket.sql`) ont bien été exécutées, dans cet ordre, sur la même base que celle utilisée par le site déployé.
+4. Vérifiez que **toutes les migrations SQL** (`db/migration_live.sql`, `db/migration_playoffs.sql`, `db/migration_bracket.sql`, `db/migration_auth.sql`) ont bien été exécutées, dans cet ordre, sur la même base que celle utilisée par le site déployé.
+5. Vérifiez que `JWT_SECRET` est bien défini dans les variables d'environnement Vercel (sinon les connexions ne persisteront pas correctement après redéploiement).
 
 ## Développement local
 

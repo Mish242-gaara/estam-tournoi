@@ -33,29 +33,20 @@ function computeQualifiers(teams, group) {
 
 // Détermine automatiquement la suite des tours à élimination directe en fonction
 // du nombre total de qualifiés (2 par groupe), jusqu'à la finale de Pointe-Noire.
-function nextPowerOfTwo(value) {
-  if (value <= 1) return 1;
-  return 2 ** Math.ceil(Math.log2(value));
-}
-
 function roundsForQualifierCount(n) {
-  const bracketSize = nextPowerOfTwo(Math.max(n, 2));
   const rounds = [];
-  let remaining = bracketSize;
-
-  while (remaining > 1) {
+  let c = n;
+  while (c > 2) {
     let key, label;
-    if (remaining === 2) { key = "finale_pn"; label = "Finale Pointe-Noire"; }
-    else if (remaining === 4) { key = "demi"; label = "Demi-finales"; }
-    else if (remaining === 8) { key = "quarts"; label = "Quarts de finale"; }
-    else if (remaining === 16) { key = "huitiemes"; label = "Huitièmes de finale"; }
-    else if (remaining === 32) { key = "seiziemes"; label = "Seizièmes de finale"; }
-    else { key = `tour${remaining}`; label = `Tour à ${remaining} équipes`; }
-
-    rounds.push({ key, label, matchCount: remaining / 2 });
-    remaining /= 2;
+    if (c >= 32) { key = "seiziemes"; label = "Seizièmes de finale"; }
+    else if (c === 16) { key = "huitiemes"; label = "Huitièmes de finale"; }
+    else if (c === 8) { key = "quarts"; label = "Quarts de finale"; }
+    else if (c === 4) { key = "demi"; label = "Demi-finales"; }
+    else { key = `tour${c}`; label = `Tour à ${c} équipes`; }
+    rounds.push({ key, label, matchCount: Math.floor(c / 2) });
+    c = Math.floor(c / 2);
   }
-
+  rounds.push({ key: "finale_pn", label: "Finale Pointe-Noire", matchCount: 1 });
   return rounds;
 }
 
@@ -91,11 +82,11 @@ export default function Page() {
   const [scorers, setScorers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [pinValue, setPinValue] = useState("");
-  const [pinErr, setPinErr] = useState("");
-  const pinRef = useRef("");
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authModal, setAuthModal] = useState(null); // null | 'login' | 'register'
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const isAdmin = user?.role === "admin";
 
   const [toast, setToast] = useState({ show: false, msg: "", error: false });
   const toastTimer = useRef(null);
@@ -126,8 +117,11 @@ export default function Page() {
 
   useEffect(() => {
     loadAll();
-    const stored = typeof window !== "undefined" ? sessionStorage.getItem("estam_admin_pin") : null;
-    if (stored) pinRef.current = stored;
+    fetch("/api/auth/me")
+      .then(r => r.json())
+      .then(d => setUser(d.user))
+      .catch(() => {})
+      .finally(() => setAuthLoading(false));
   }, [loadAll]);
 
   // Rafraîchissement automatique en arrière-plan (façon Flashscore) — toutes les 12s,
@@ -150,51 +144,87 @@ export default function Page() {
     return () => clearInterval(id);
   }, []);
 
-  // ---------- admin session ----------
-  async function confirmPin() {
+  // ---------- auth ----------
+  const [authForm, setAuthForm] = useState({ name: "", email: "", password: "", role: "fan", teamId: "" });
+  const [authErr, setAuthErr] = useState("");
+  const [authInfo, setAuthInfo] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+
+  function openAuth(mode) {
+    setAuthForm({ name: "", email: "", password: "", role: "fan", teamId: "" });
+    setAuthErr("");
+    setAuthInfo("");
+    setAuthModal(mode);
+  }
+
+  async function submitLogin() {
+    setAuthErr("");
+    setAuthBusy(true);
     try {
-      const res = await fetch("/api/admin", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: pinValue })
+        body: JSON.stringify({ email: authForm.email, password: authForm.password })
       });
       const data = await res.json();
-      if (data.ok) {
-        pinRef.current = pinValue;
-        sessionStorage.setItem("estam_admin_pin", pinValue);
-        setIsAdmin(true);
-        setModalOpen(false);
-        showToast("Mode organisateur activé");
+      if (!res.ok) {
+        setAuthErr(data.error || "Connexion impossible.");
       } else {
-        setPinErr("Code incorrect.");
+        setUser(data.user);
+        setAuthModal(null);
+        showToast(`Bienvenue, ${data.user.name}`);
       }
     } catch (e) {
-      setPinErr("Erreur de connexion au serveur.");
-    }
-  }
-  function toggleAdmin() {
-    if (isAdmin) {
-      setIsAdmin(false);
-      pinRef.current = "";
-      sessionStorage.removeItem("estam_admin_pin");
-      showToast("Mode organisateur désactivé");
-    } else {
-      setPinValue("");
-      setPinErr("");
-      setModalOpen(true);
+      setAuthErr("Erreur de connexion au serveur.");
+    } finally {
+      setAuthBusy(false);
     }
   }
 
-  // ---------- generic mutate helper ----------
+  async function submitRegister() {
+    setAuthErr("");
+    setAuthInfo("");
+    setAuthBusy(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authForm)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthErr(data.error || "Inscription impossible.");
+      } else if (authForm.role === "coach") {
+        setAuthInfo("Compte créé. Il doit être validé par un administrateur avant de pouvoir vous connecter.");
+      } else {
+        setAuthInfo("Compte créé ! Vous pouvez maintenant vous connecter.");
+      }
+    } catch (e) {
+      setAuthErr("Erreur de connexion au serveur.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function logout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {}
+    setUser(null);
+    setUserMenuOpen(false);
+    showToast("Déconnecté");
+  }
+
+  // ---------- generic mutate helper (session cookie sent automatically) ----------
   async function apiMutate(path, method, body) {
     const res = await fetch(path, {
       method,
-      headers: { "Content-Type": "application/json", "x-admin-pin": pinRef.current },
+      headers: { "Content-Type": "application/json" },
       body: body !== undefined ? JSON.stringify(body) : undefined
     });
     if (res.status === 401) {
-      setIsAdmin(false);
-      showToast("Session organisateur expirée, reconnectez-vous.", true);
+      setUser(null);
+      showToast("Session expirée, reconnectez-vous.", true);
       throw new Error("unauthorized");
     }
     if (!res.ok) {
@@ -239,12 +269,10 @@ export default function Page() {
       setMatches(m => m.filter(x => x.id !== id));
     } catch (e) {}
   }
-  async function createRound(roundKey, roundLabel, pairings, startIndex = 0) {
-    const pending = pairings.slice(startIndex);
-    if (pending.length === 0) return [];
+  async function createRound(roundKey, roundLabel, pairings) {
     try {
       const created = await Promise.all(
-        pending.map((pair, idx) =>
+        pairings.map((pair, idx) =>
           apiMutate("/api/matches", "POST", {
             date: new Date().toISOString().slice(0, 10),
             time: "15:00",
@@ -257,16 +285,13 @@ export default function Page() {
             minute: null,
             phase: roundKey,
             winner: null,
-            slot: startIndex + idx + 1
+            slot: idx + 1
           })
         )
       );
       setMatches(m => [...m, ...created]);
       showToast(`${roundLabel} créées — modifiez les dates si besoin`);
-      return created;
-    } catch (e) {
-      return [];
-    }
+    } catch (e) {}
   }
 
   // ---------- live goal events ----------
@@ -274,12 +299,12 @@ export default function Page() {
     try {
       const res = await fetch("/api/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-pin": pinRef.current },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matchId, minute, team, scorer })
       });
       if (res.status === 401) {
-        setIsAdmin(false);
-        showToast("Session organisateur expirée, reconnectez-vous.", true);
+        setUser(null);
+        showToast("Session expirée, reconnectez-vous.", true);
         return;
       }
       if (!res.ok) { showToast("Erreur lors de l'ajout du but.", true); return; }
@@ -292,13 +317,10 @@ export default function Page() {
   }
   async function deleteEvent(eventId, matchId) {
     try {
-      const res = await fetch(`/api/events/${eventId}`, {
-        method: "DELETE",
-        headers: { "x-admin-pin": pinRef.current }
-      });
+      const res = await fetch(`/api/events/${eventId}`, { method: "DELETE" });
       if (res.status === 401) {
-        setIsAdmin(false);
-        showToast("Session organisateur expirée, reconnectez-vous.", true);
+        setUser(null);
+        showToast("Session expirée, reconnectez-vous.", true);
         return;
       }
       if (!res.ok) { showToast("Erreur lors de la suppression.", true); return; }
@@ -382,45 +404,6 @@ export default function Page() {
   const roundPlan = totalQualifiers >= 2 ? roundsForQualifierCount(totalQualifiers) : [];
   const finaleGen = matches.find(m => m.phase === "finale_generale");
 
-  useEffect(() => {
-    if (!isAdmin || loading || roundPlan.length === 0) return;
-
-    const ensurePlayoffRounds = async () => {
-      for (let idx = 0; idx < roundPlan.length; idx += 1) {
-        const round = roundPlan[idx];
-        const roundMatches = matches.filter(m => m.phase === round.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
-        const missingCount = Math.max(0, round.matchCount - roundMatches.length);
-
-        if (missingCount === 0) continue;
-
-        let pairings = [];
-        if (idx === 0) {
-          pairings = crossSeedFirstRound(qualifiersByGroup).slice(0, round.matchCount);
-        } else {
-          const prevRound = roundPlan[idx - 1];
-          const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
-          if (prevMatches.length !== prevRound.matchCount) continue;
-
-          for (let i = 0; i < prevMatches.length; i += 2) {
-            const a = prevMatches[i];
-            const b = prevMatches[i + 1];
-            if (!a || !b) continue;
-            const leftWinner = a.winner || `Vainqueur (${a.teamA} / ${a.teamB})`;
-            const rightWinner = b.winner || `Vainqueur (${b.teamA} / ${b.teamB})`;
-            if (leftWinner && rightWinner) pairings.push([leftWinner, rightWinner]);
-          }
-        }
-
-        if (pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1])) {
-          await createRound(round.key, round.label, pairings, roundMatches.length);
-          return;
-        }
-      }
-    };
-
-    ensurePlayoffRounds();
-  }, [isAdmin, loading, matches, qualifiersByGroup, roundPlan]);
-
   const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
@@ -452,11 +435,33 @@ export default function Page() {
                 {t.label}
               </button>
             ))}
+            {isAdmin && (
+              <button className={tab === "admin" ? "active" : ""} onClick={() => { setTab("admin"); setNavOpen(false); }}>
+                Comptes
+              </button>
+            )}
           </nav>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button id="adminBtn" className={isAdmin ? "on" : ""} onClick={toggleAdmin}>
-              {isAdmin ? "Organisateur ✓" : "Mode organisateur"}
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
+            {!authLoading && (
+              user ? (
+                <div style={{ position: "relative" }}>
+                  <button id="adminBtn" className={isAdmin ? "on" : ""} onClick={() => setUserMenuOpen(o => !o)}>
+                    {user.name}{isAdmin ? " ★" : user.role === "coach" ? " (coach)" : ""}
+                  </button>
+                  {userMenuOpen && (
+                    <div className="user-dropdown">
+                      <div className="user-dropdown-email">{user.email}</div>
+                      <button onClick={logout}>Se déconnecter</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <button id="adminBtn" onClick={() => openAuth("login")}>Se connecter</button>
+                  <button className="btn small ghost" onClick={() => openAuth("register")}>Créer un compte</button>
+                </>
+              )
+            )}
             <button className="mobile-toggle" onClick={() => setNavOpen(o => !o)}>☰</button>
           </div>
         </div>
@@ -613,79 +618,43 @@ export default function Page() {
                 let pairings = [];
                 let canCreate = false;
 
-                if (idx === 0) {
-                  pairings = crossSeedFirstRound(qualifiersByGroup);
-                  canCreate = pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1]);
-                } else {
-                  const prevRound = roundPlan[idx - 1];
-                  const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
-                  if (prevMatches.length === prevRound.matchCount) {
-                    for (let i = 0; i < prevMatches.length; i += 2) {
-                      const a = prevMatches[i];
-                      const b = prevMatches[i + 1];
-                      pairings.push([a?.winner || `Vainqueur (${a?.teamA} / ${a?.teamB})`, b?.winner || `Vainqueur (${b?.teamA} / ${b?.teamB})`]);
+                if (roundMatches.length === 0) {
+                  if (idx === 0) {
+                    pairings = crossSeedFirstRound(qualifiersByGroup);
+                    canCreate = pairings.length === round.matchCount && pairings.every(p => p[0] && p[1]);
+                  } else {
+                    const prevRound = roundPlan[idx - 1];
+                    const prevMatches = matches.filter(m => m.phase === prevRound.key).sort((a, b) => (a.slot || 0) - (b.slot || 0));
+                    if (prevMatches.length === prevRound.matchCount) {
+                      for (let i = 0; i < prevMatches.length; i += 2) {
+                        const a = prevMatches[i];
+                        const b = prevMatches[i + 1];
+                        pairings.push([a?.winner || `Vainqueur (${a?.teamA} / ${a?.teamB})`, b?.winner || `Vainqueur (${b?.teamA} / ${b?.teamB})`]);
+                      }
+                      canCreate = true;
                     }
-                    canCreate = pairings.length >= round.matchCount && pairings.every(p => p[0] && p[1]);
                   }
                 }
 
-                const missingCount = Math.max(0, round.matchCount - roundMatches.length);
-
                 return (
-                  <div className="round-column" key={round.key}>
-                    <div className="round-block">
-                      <div className="round-head">
-                        <h3>{round.label}</h3>
-                        <span className="round-count">{round.matchCount} match{round.matchCount > 1 ? "s" : ""}</span>
-                      </div>
-                      {roundMatches.length > 0 ? (
-                        <div className="round-matches">
-                          {roundMatches.map(m => (
-                            <div className="round-match-shell" key={m.id}>
-                              <div className="round-preview-card">
-                                <div className="round-preview-top">
-                                  <span className="round-preview-label">Rencontre</span>
-                                  <span className="round-preview-badge">{m.status === "done" ? "Terminé" : m.status === "live" ? "En direct" : "À venir"}</span>
-                                </div>
-                                <div className="round-preview-teams">
-                                  <span className="round-preview-team">{m.teamA}</span>
-                                  <span className="round-preview-vs">VS</span>
-                                  <span className="round-preview-team">{m.teamB}</span>
-                                </div>
-                              </div>
-                              <MatchCard m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
-                            </div>
-                          ))}
-                          {missingCount > 0 && isAdmin && canCreate && (
-                            <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings, roundMatches.length)}>
-                              + Ajouter {missingCount > 1 ? `${missingCount} matchs` : "le match manquant"}
-                            </button>
-                          )}
-                        </div>
-                      ) : canCreate && isAdmin ? (
-                        <div className="round-preview-stack">
-                          {pairings.map((pair, index) => (
-                            <div className="round-preview-card" key={`${round.key}-${index}`}>
-                              <div className="round-preview-top">
-                                <span className="round-preview-label">Prévu</span>
-                                <span className="round-preview-badge">Match {index + 1}</span>
-                              </div>
-                              <div className="round-preview-teams">
-                                <span className="round-preview-team">{pair[0]}</span>
-                                <span className="round-preview-vs">VS</span>
-                                <span className="round-preview-team">{pair[1]}</span>
-                              </div>
-                            </div>
-                          ))}
-                          <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings)}>
-                            + Créer {round.label.toLowerCase()}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="empty small">{canCreate ? "Pas encore créé" : "En attente du tour précédent"}</div>
-                      )}
+                  <div className="round-block" key={round.key}>
+                    <div className="round-head">
+                      <h3>{round.label}</h3>
+                      <span className="round-count">{round.matchCount} match{round.matchCount > 1 ? "s" : ""}</span>
                     </div>
-                    {idx < roundPlan.length - 1 && <div className="round-connector" aria-hidden="true">→</div>}
+                    {roundMatches.length > 0 ? (
+                      <div className="round-matches">
+                        {roundMatches.map(m => (
+                          <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+                        ))}
+                      </div>
+                    ) : canCreate && isAdmin ? (
+                      <button className="btn primary small" onClick={() => createRound(round.key, round.label, pairings)}>
+                        + Créer {round.label.toLowerCase()}
+                      </button>
+                    ) : (
+                      <div className="empty small">{canCreate ? "Pas encore créé" : "En attente du tour précédent"}</div>
+                    )}
                   </div>
                 );
               })}
@@ -741,6 +710,8 @@ export default function Page() {
             </div>
           </section>
         )}
+
+        {tab === "admin" && isAdmin && <AdminCoachesPanel showToast={showToast} />}
       </div>
 
       <footer>
@@ -766,26 +737,141 @@ export default function Page() {
 
       <div className={`toast${toast.show ? " show" : ""}${toast.error ? " error" : ""}`}>{toast.msg}</div>
 
-      <div className={`modal-bg${modalOpen ? " open" : ""}`}>
+      <div className={`modal-bg${authModal ? " open" : ""}`}>
         <div className="modal">
-          <h3>Accès organisateur</h3>
-          <p>Entrez le code organisateur pour modifier le programme, les classements et les buteurs. Ce code protège contre les erreurs de saisie accidentelles, ce n'est pas une sécurité forte.</p>
-          <input
-            type="password"
-            placeholder="Code organisateur"
-            value={pinValue}
-            onChange={e => setPinValue(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") confirmPin(); }}
-            autoFocus={modalOpen}
-          />
-          <div className="modal-err">{pinErr}</div>
-          <div className="modal-actions">
-            <button className="btn ghost" onClick={() => setModalOpen(false)}>Annuler</button>
-            <button className="btn primary" onClick={confirmPin}>Entrer</button>
-          </div>
+          {authModal === "login" ? (
+            <>
+              <h3>Se connecter</h3>
+              <p>Connectez-vous à votre compte administrateur, coach ou supporter.</p>
+              <input type="email" placeholder="Email" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} onKeyDown={e => { if (e.key === "Enter") submitLogin(); }} autoFocus />
+              <input type="password" placeholder="Mot de passe" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} onKeyDown={e => { if (e.key === "Enter") submitLogin(); }} />
+              <div className="modal-err">{authErr}</div>
+              <div className="modal-actions">
+                <button className="btn ghost" onClick={() => setAuthModal(null)}>Annuler</button>
+                <button className="btn primary" onClick={submitLogin} disabled={authBusy}>{authBusy ? "…" : "Se connecter"}</button>
+              </div>
+              <p className="auth-switch">Pas de compte ? <button type="button" onClick={() => openAuth("register")}>En créer un</button></p>
+            </>
+          ) : (
+            <>
+              <h3>Créer un compte</h3>
+              <p>Compte <b>supporter</b> : activé immédiatement. Compte <b>coach</b> : à valider par un administrateur avant de pouvoir vous connecter.</p>
+              <div className="role-toggle">
+                <button type="button" className={authForm.role === "fan" ? "active" : ""} onClick={() => setAuthForm({ ...authForm, role: "fan" })}>Supporter</button>
+                <button type="button" className={authForm.role === "coach" ? "active" : ""} onClick={() => setAuthForm({ ...authForm, role: "coach" })}>Coach</button>
+              </div>
+              <input type="text" placeholder="Nom" value={authForm.name} onChange={e => setAuthForm({ ...authForm, name: e.target.value })} />
+              <input type="email" placeholder="Email" value={authForm.email} onChange={e => setAuthForm({ ...authForm, email: e.target.value })} />
+              <input type="password" placeholder="Mot de passe (6 caractères min.)" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+              {authForm.role === "coach" && (
+                <select className="edit" style={{ width: "100%", marginBottom: 6 }} value={authForm.teamId} onChange={e => setAuthForm({ ...authForm, teamId: e.target.value })}>
+                  <option value="">Filière encadrée…</option>
+                  {teams.map(t => <option key={t.id} value={t.id}>{t.name} (Groupe {t.group})</option>)}
+                </select>
+              )}
+              <div className="modal-err">{authErr}</div>
+              {authInfo && <div className="auth-info">{authInfo}</div>}
+              <div className="modal-actions">
+                <button className="btn ghost" onClick={() => setAuthModal(null)}>Fermer</button>
+                <button className="btn primary" onClick={submitRegister} disabled={authBusy}>{authBusy ? "…" : "Créer le compte"}</button>
+              </div>
+              <p className="auth-switch">Déjà un compte ? <button type="button" onClick={() => openAuth("login")}>Se connecter</button></p>
+            </>
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+// ============================================================
+// Admin panel — coach account approval
+// ============================================================
+function AdminCoachesPanel({ showToast }) {
+  const [coaches, setCoaches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/coaches");
+      const data = await res.json();
+      setCoaches(Array.isArray(data) ? data : []);
+    } catch (e) {
+      showToast("Impossible de charger les comptes coachs.", true);
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function setStatus(id, status) {
+    try {
+      const res = await fetch(`/api/admin/coaches/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) { showToast("Erreur lors de la mise à jour.", true); return; }
+      const updated = await res.json();
+      setCoaches(list => list.map(c => (c.id === id ? { ...c, status: updated.status } : c)));
+      showToast(status === "approved" ? "Coach validé" : "Coach refusé");
+    } catch (e) {
+      showToast("Erreur lors de la mise à jour.", true);
+    }
+  }
+
+  const pending = coaches.filter(c => c.status === "pending");
+  const others = coaches.filter(c => c.status !== "pending");
+
+  return (
+    <section className="tab active">
+      <div className="section-head">
+        <h2>Comptes coachs</h2>
+        <div className="sub">{loading ? "Chargement…" : `${pending.length} en attente de validation`}</div>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="coach-list">
+          {pending.map(c => (
+            <div className="coach-row" key={c.id}>
+              <div className="coach-info">
+                <b>{c.name}</b>
+                <span>{c.email}</span>
+                <span className="tag">{c.teamName || "Filière non précisée"}</span>
+              </div>
+              <div className="coach-actions">
+                <button className="btn primary small" onClick={() => setStatus(c.id, "approved")}>Valider</button>
+                <button className="btn danger small" onClick={() => setStatus(c.id, "rejected")}>Refuser</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {pending.length === 0 && !loading && <div className="empty">Aucune demande en attente.</div>}
+
+      {others.length > 0 && (
+        <>
+          <div className="section-head" style={{ marginTop: 30 }}>
+            <h2 style={{ fontSize: 18 }}>Autres comptes coachs</h2>
+          </div>
+          <div className="coach-list">
+            {others.map(c => (
+              <div className="coach-row" key={c.id}>
+                <div className="coach-info">
+                  <b>{c.name}</b>
+                  <span>{c.email}</span>
+                  <span className="tag">{c.teamName || "Filière non précisée"}</span>
+                </div>
+                <span className={`tag ${c.status === "approved" ? "status-upcoming" : "status-live"}`}>
+                  {c.status === "approved" ? "Validé" : "Refusé"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

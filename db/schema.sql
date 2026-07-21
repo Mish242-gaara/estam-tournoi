@@ -41,3 +41,14 @@ CREATE TABLE IF NOT EXISTS scorers (
   filiere TEXT NOT NULL,
   goals INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'fan', -- admin | coach | fan
+  status TEXT NOT NULL DEFAULT 'approved', -- approved | pending | rejected
+  team_id INTEGER REFERENCES teams(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT now()
+);
