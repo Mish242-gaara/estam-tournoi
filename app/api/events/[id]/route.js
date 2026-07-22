@@ -18,9 +18,14 @@ export async function DELETE(req, { params }) {
 
   await sql`DELETE FROM events WHERE id = ${params.id}`;
 
-  const matchRows = event.team === "A"
-    ? await sql`UPDATE matches SET score_a = GREATEST(COALESCE(score_a, 0) - 1, 0) WHERE id = ${event.match_id} RETURNING *`
-    : await sql`UPDATE matches SET score_b = GREATEST(COALESCE(score_b, 0) - 1, 0) WHERE id = ${event.match_id} RETURNING *`;
+  let matchRows;
+  if (event.type === "goal" && event.team === "A") {
+    matchRows = await sql`UPDATE matches SET score_a = GREATEST(COALESCE(score_a, 0) - 1, 0) WHERE id = ${event.match_id} RETURNING *`;
+  } else if (event.type === "goal" && event.team === "B") {
+    matchRows = await sql`UPDATE matches SET score_b = GREATEST(COALESCE(score_b, 0) - 1, 0) WHERE id = ${event.match_id} RETURNING *`;
+  } else {
+    matchRows = await sql`SELECT * FROM matches WHERE id = ${event.match_id}`;
+  }
 
   return Response.json({ match: matchRows.length ? mapMatch(matchRows[0]) : null });
 }

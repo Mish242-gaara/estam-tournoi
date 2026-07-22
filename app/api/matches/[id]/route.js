@@ -1,7 +1,17 @@
-import { getDb, mapMatch } from "../../../../lib/db";
+import { getDb, mapMatch, mapEvent } from "../../../../lib/db";
 import { requireAdmin } from "../../../../lib/auth";
 
 export const dynamic = "force-dynamic";
+
+export async function GET(req, { params }) {
+  const sql = getDb();
+  const matchRows = await sql`SELECT * FROM matches WHERE id = ${params.id}`;
+  if (matchRows.length === 0) {
+    return new Response(JSON.stringify({ error: "Match introuvable" }), { status: 404 });
+  }
+  const eventRows = await sql`SELECT * FROM events WHERE match_id = ${params.id} ORDER BY minute ASC, id ASC`;
+  return Response.json({ ...mapMatch(matchRows[0]), events: eventRows.map(mapEvent) });
+}
 
 export async function PUT(req, { params }) {
   const admin = await requireAdmin(req);

@@ -20,8 +20,11 @@ CREATE TABLE IF NOT EXISTS events (
   id SERIAL PRIMARY KEY,
   match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   minute INTEGER NOT NULL,
-  team CHAR(1) NOT NULL, -- 'A' ou 'B'
-  scorer TEXT,
+  team CHAR(1), -- 'A' ou 'B', NULL pour les évènements non liés à une équipe (mi-temps, etc.)
+  type TEXT NOT NULL DEFAULT 'goal', -- goal | yellow | red | substitution | info
+  scorer TEXT, -- buteur, joueur qui prend le carton, ou joueur entrant (remplacement)
+  player_out TEXT, -- joueur sortant (remplacement uniquement)
+  detail TEXT, -- texte libre pour les évènements de type "info" (ex. "Mi-temps")
   created_at TIMESTAMP DEFAULT now()
 );
 

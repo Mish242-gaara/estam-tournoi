@@ -98,3 +98,22 @@ Le `ADMIN_PIN` est vérifié côté serveur sur chaque écriture (POST/PUT/DELET
 mais reste un simple code partagé, pas un compte individuel. C'est suffisant
 pour un usage interne au comité d'organisation. Si vous voulez des comptes
 nominatifs plus tard, on peut ajouter une authentification par utilisateur.
+
+## 7. Page dédiée par match (façon Sofascore/Flashscore)
+
+Chaque match a sa propre page à l'adresse `/match/{id}` (accessible depuis le bouton "Détails →" / "🔴 Direct" sur chaque carte de match). Elle affiche :
+
+- Un grand tableau de score avec minute en direct et statut
+- Un **fil d'événements** en deux colonnes (équipe A à gauche, équipe B à droite), avec plusieurs types : ⚽ but, 🟨 carton jaune, 🟥 carton rouge, 🔁 remplacement, ℹ️ info libre (mi-temps, coup d'envoi, fin de match…)
+- Un rafraîchissement automatique toutes les 5 secondes (plus rapide que la page d'accueil, puisque focalisée sur un seul match)
+- Pour les administrateurs connectés : changement de statut, ajustement de la minute, correction manuelle du score, désignation du vainqueur (matchs à élimination), et un formulaire pour ajouter n'importe quel type d'événement
+
+Seuls les événements de type **but** modifient le score automatiquement ; les cartons, remplacements et infos sont purement informatifs.
+
+## Migrations SQL — récapitulatif complet dans l'ordre
+
+1. `db/migration_live.sql`
+2. `db/migration_playoffs.sql`
+3. `db/migration_bracket.sql`
+4. `db/migration_auth.sql`
+5. `db/migration_events_enrich.sql`

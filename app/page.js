@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Link from "next/link";
 
 const TABS = [
   { key: "accueil", label: "Accueil" },
@@ -65,6 +66,18 @@ function crossSeedFirstRound(qualifiersByGroup) {
     if (gB.teams[0] && gA.teams[1]) pairs.push([gB.teams[0].name, gA.teams[1].name]);
   }
   return pairs;
+}
+
+const EVENT_ICONS = { goal: "⚽", yellow: "🟨", red: "🟥", substitution: "🔁", info: "ℹ️" };
+function eventIcon(ev) {
+  return EVENT_ICONS[ev.type] || "⚽";
+}
+function eventText(ev) {
+  if (ev.type === "substitution") return `${ev.scorer || "?"} remplace ${ev.playerOut || "?"}`;
+  if (ev.type === "info") return ev.detail || "";
+  if (ev.type === "yellow") return `${ev.scorer || "Joueur"} (carton jaune)`;
+  if (ev.type === "red") return `${ev.scorer || "Joueur"} (carton rouge)`;
+  return ev.scorer || "But";
 }
 
 function formatDate(iso) {
@@ -294,25 +307,25 @@ export default function Page() {
     } catch (e) {}
   }
 
-  // ---------- live goal events ----------
-  async function addEvent(matchId, { minute, team, scorer }) {
+  // ---------- live match events ----------
+  async function addEvent(matchId, payload) {
     try {
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, minute, team, scorer })
+        body: JSON.stringify({ matchId, ...payload })
       });
       if (res.status === 401) {
         setUser(null);
         showToast("Session expirée, reconnectez-vous.", true);
         return;
       }
-      if (!res.ok) { showToast("Erreur lors de l'ajout du but.", true); return; }
+      if (!res.ok) { showToast("Erreur lors de l'ajout de l'événement.", true); return; }
       const { event, match } = await res.json();
       setMatches(list => list.map(m => (m.id === matchId ? { ...match, events: [...(m.events || []), event].sort((a, b) => a.minute - b.minute) } : m)));
-      showToast("But ajouté");
+      showToast("Événement ajouté");
     } catch (e) {
-      showToast("Erreur lors de l'ajout du but.", true);
+      showToast("Erreur lors de l'ajout de l'événement.", true);
     }
   }
   async function deleteEvent(eventId, matchId) {
@@ -992,6 +1005,7 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
             </div>
           )}
           <div className="match-admin">
+            <Link href={`/match/${m.id}`} className="btn small ghost">Page match →</Link>
             <button className="btn small ghost" onClick={() => setExpanded(x => !x)}>{expanded ? "Réduire" : "Buts"}</button>
             <button className="btn danger small" onClick={() => onDelete(m.id)}>Supprimer</button>
           </div>
@@ -1019,6 +1033,9 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
           <div className="match-tags">
             <span className="tag">{phaseLabel}</span>
             <span className={`tag ${statusClass}`}>{statusLabel}</span>
+            <Link href={`/match/${m.id}`} className="match-link" onClick={e => e.stopPropagation()}>
+              {isLive ? "🔴 Direct" : "Détails →"}
+            </Link>
           </div>
         </div>
       )}
@@ -1030,14 +1047,14 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
       {expanded && (
         <div className="events-panel">
           {events.length === 0 ? (
-            <div className="events-empty">Aucun but pour le moment.</div>
+            <div className="events-empty">Aucun événement pour le moment.</div>
           ) : (
             <ul className="events-list">
               {events.map(ev => (
-                <li key={ev.id} className={`event-item team-${ev.team}`}>
+                <li key={ev.id} className={`event-item${ev.team ? ` team-${ev.team}` : " team-info"}`}>
                   <span className="ev-minute">{ev.minute}'</span>
-                  <span className="ev-ball">⚽</span>
-                  <span className="ev-scorer">{ev.scorer || "But"} <span className="ev-team">({ev.team === "A" ? m.teamA : m.teamB})</span></span>
+                  <span className="ev-ball">{eventIcon(ev)}</span>
+                  <span className="ev-scorer">{eventText(ev)} {ev.team && <span className="ev-team">({ev.team === "A" ? m.teamA : m.teamB})</span>}</span>
                   {isAdmin && <button className="ev-del" onClick={() => onDeleteEvent(ev.id, m.id)}>✕</button>}
                 </li>
               ))}

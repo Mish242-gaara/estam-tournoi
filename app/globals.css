@@ -328,3 +328,63 @@ input.edit.minute{ width:50px; text-align:center; font-family:'JetBrains Mono'; 
 .coach-info b{ font-size:14px; }
 .coach-info span{ font-size:12px; color:var(--grey-500); }
 .coach-actions{ display:flex; gap:8px; }
+
+/* ---------- dedicated match page ---------- */
+.match-page{ min-height:100vh; padding:24px 0 60px; }
+.match-page-status{ min-height:100vh; display:flex; align-items:center; justify-content:center; color:var(--grey-300); font-size:14px; gap:8px; }
+.match-page-status a{ color:var(--gold-500); }
+.back-link{ color:var(--grey-300); font-family:'Oswald'; font-size:13px; letter-spacing:0.03em; text-decoration:none; display:inline-block; margin-bottom:18px; }
+.back-link:hover{ color:white; }
+
+.live-hero{
+  background:var(--navy-900); border:1px solid var(--navy-600); border-radius:14px; padding:26px; position:relative; overflow:hidden;
+}
+.live-hero::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:4px;
+  background:repeating-linear-gradient(90deg, var(--red-600) 0 18px, var(--gold-500) 18px 36px);
+}
+.live-hero.is-live{ border-color:rgba(212,27,43,0.45); box-shadow:0 0 0 1px rgba(212,27,43,0.15) inset; }
+.live-hero-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+.live-hero-score{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:14px; text-align:center; }
+.live-hero-team{ font-family:'Oswald'; font-size:clamp(18px,4vw,26px); font-weight:600; }
+.live-hero-score-num{ font-family:'JetBrains Mono'; font-weight:700; font-size:clamp(32px,7vw,52px); color:var(--gold-500); }
+.live-hero-score-num span{ color:var(--grey-500); font-size:0.5em; margin:0 4px; }
+.live-hero-meta{ text-align:center; margin-top:14px; color:var(--grey-500); font-size:13px; font-family:'JetBrains Mono'; }
+
+.live-admin-controls{ display:flex; gap:16px; flex-wrap:wrap; margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08); }
+.live-admin-controls label{ display:flex; flex-direction:column; gap:6px; font-family:'Oswald'; font-size:11px; letter-spacing:0.06em; color:var(--grey-500); }
+
+.timeline{ display:flex; flex-direction:column; gap:2px; position:relative; }
+.timeline::before{
+  content:''; position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(255,255,255,0.08); transform:translateX(-1px);
+}
+.timeline-row{ display:grid; grid-template-columns:1fr 46px 1fr; align-items:center; gap:8px; position:relative; padding:6px 0; }
+.timeline-side{ font-size:13.5px; }
+.timeline-side-a{ text-align:right; }
+.timeline-side-b{ text-align:left; }
+.timeline-event{ display:inline-flex; align-items:center; gap:6px; }
+.timeline-minute{
+  font-family:'JetBrains Mono'; font-size:11.5px; color:var(--navy-950); background:var(--gold-500);
+  border-radius:10px; padding:2px 0; text-align:center; font-weight:700; z-index:1;
+}
+.timeline-row-info{ display:flex; justify-content:center; padding:10px 0; }
+.timeline-info-badge{
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px;
+  padding:5px 14px; font-size:12.5px; color:var(--grey-300); display:flex; align-items:center; gap:8px;
+}
+.timeline-minute-inline{ font-family:'JetBrains Mono'; color:var(--gold-500); }
+.timeline-del{ position:absolute; right:-26px; top:50%; transform:translateY(-50%); }
+@media (max-width:600px){ .timeline-del{ position:static; transform:none; margin-left:6px; } .timeline-row{ grid-template-columns:1fr 40px 1fr; } }
+
+.event-form-card{
+  background:var(--navy-900); border:1px solid rgba(255,255,255,0.08); border-radius:var(--radius);
+  padding:16px; margin-top:24px; display:flex; flex-direction:column; gap:10px;
+}
+.event-form-card h3{ font-size:14px; margin:0; color:var(--gold-500); }
+.event-form-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+.match-link{
+  font-family:'Oswald'; font-size:10.5px; letter-spacing:0.05em; color:var(--gold-500); text-decoration:none;
+  border:1px solid rgba(240,168,60,0.3); padding:3px 9px; border-radius:12px; margin-left:auto;
+}
+.match-link:hover{ background:rgba(240,168,60,0.1); }
