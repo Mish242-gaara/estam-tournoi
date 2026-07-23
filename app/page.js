@@ -886,7 +886,7 @@ function AdminCoachesPanel({ showToast }) {
 }
 
 // ============================================================
-// Match card (view + admin edit + live buts)
+// Match card (view + admin edit + live goals)
 // ============================================================
 function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }) {
   const [expanded, setExpanded] = useState(m.status === "live");
