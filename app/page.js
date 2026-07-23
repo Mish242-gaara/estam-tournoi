@@ -491,13 +491,7 @@ export default function Page() {
             <h1>Tournoi <span>Inter-Filières</span><br />ESTAM 2026</h1>
             <p className="lead">Programme des matchs, classements et meilleurs buteurs de la phase Pointe-Noire, mis à jour en direct par les organisateurs.</p>
 
-            <div className="finale-banner">
-              <div className="icon">🏆</div>
-              <div className="txt">
-                <b>La grande finale</b>
-                <span>Le vainqueur de Pointe-Noire affrontera le vainqueur de la phase de Brazzaville pour le titre national.</span>
-              </div>
-            </div>
+           
 
             <Scoreboard match={nextMatch} isLive={Boolean(live)} loading={loading} />
           </div>
