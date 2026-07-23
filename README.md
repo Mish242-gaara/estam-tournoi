@@ -117,3 +117,7 @@ Seuls les événements de type **but** modifient le score automatiquement ; les 
 3. `db/migration_bracket.sql`
 4. `db/migration_auth.sql`
 5. `db/migration_events_enrich.sql`
+
+## Dates de match non fixées
+
+Un match (surtout ceux créés automatiquement pour les demi-finales/finales) peut ne pas encore avoir de date ou d'heure. C'est normal : il s'affiche avec "Date à confirmer", groupé à part dans le Programme. Dès que la date est connue, éditez-la en mode admin — l'enregistrement se fait quand vous quittez le champ (pas à chaque frappe), pour éviter d'enregistrer une date incomplète pendant la saisie.

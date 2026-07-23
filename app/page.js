@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import Scoreboard from "./components/Scoreboard";
 
 const TABS = [
   { key: "accueil", label: "Accueil" },
@@ -82,7 +81,7 @@ function eventText(ev) {
 }
 
 function formatDate(iso) {
-  if (!iso) return "";
+  if (!iso) return "Date à confirmer";
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
@@ -288,8 +287,8 @@ export default function Page() {
       const created = await Promise.all(
         pairings.map((pair, idx) =>
           apiMutate("/api/matches", "POST", {
-            date: new Date().toISOString().slice(0, 10),
-            time: "15:00",
+            date: null,
+            time: null,
             teamA: pair[0],
             teamB: pair[1],
             scoreA: null,
@@ -304,7 +303,7 @@ export default function Page() {
         )
       );
       setMatches(m => [...m, ...created]);
-      showToast(`${roundLabel} créées — modifiez les dates si besoin`);
+      showToast(`${roundLabel} créées — pensez à fixer la date et l'heure`);
     } catch (e) {}
   }
 
@@ -403,9 +402,10 @@ export default function Page() {
   }
 
   // ---------- derived data ----------
-  const sortedMatches = [...matches].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const sortKey = m => `${m.date || "9999-99-99"} ${m.time || "99:99"}`;
+  const sortedMatches = [...matches].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
   const live = sortedMatches.find(m => m.status === "live");
-  const nextMatch = live || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
+  const nextMatch = live || sortedMatches.find(m => m.status === "upcoming" && m.date) || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
   const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
   const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
 
@@ -421,7 +421,8 @@ export default function Page() {
   const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
-    (acc[m.date] = acc[m.date] || []).push(m);
+    const key = m.date || "a-programmer";
+    (acc[key] = acc[key] || []).push(m);
     return acc;
   }, {});
   const playedCount = matches.filter(m => m.status === "done").length;
@@ -429,7 +430,7 @@ export default function Page() {
   const topScorer = sortedScorers[0];
   const upcomingPreview = matches
     .filter(m => m.status !== "done")
-    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+    .sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
     .slice(0, 3);
 
   return (
@@ -490,7 +491,13 @@ export default function Page() {
             <h1>Tournoi <span>Inter-Filières</span><br />ESTAM 2026</h1>
             <p className="lead">Programme des matchs, classements et meilleurs buteurs de la phase Pointe-Noire, mis à jour en direct par les organisateurs.</p>
 
-            
+            <div className="finale-banner">
+              <div className="icon">🏆</div>
+              <div className="txt">
+                <b>La grande finale</b>
+                <span>Le vainqueur de Pointe-Noire affrontera le vainqueur de la phase de Brazzaville pour le titre national.</span>
+              </div>
+            </div>
 
             <Scoreboard match={nextMatch} isLive={Boolean(live)} loading={loading} />
           </div>
@@ -541,7 +548,7 @@ export default function Page() {
             ) : (
               upcomingPreview.map(m => (
                 <div className="match-card" key={m.id}>
-                  <div className="match-time">{m.time}</div>
+                  <div className="match-time">{m.time || "—"}</div>
                   <div className="match-teams">
                     <span className="nm">{m.teamA}</span><span className="sep">VS</span><span className="nm">{m.teamB}</span>
                   </div>
@@ -566,9 +573,9 @@ export default function Page() {
             ) : (
               Object.keys(matchesByDate).sort().map(date => (
                 <div className="day-group" key={date}>
-                  <div className="day-title">{formatDate(date)}</div>
+                  <div className="day-title">{date === "a-programmer" ? "Date à confirmer" : formatDate(date)}</div>
                   {matchesByDate[date]
-                    .sort((a, b) => a.time.localeCompare(b.time))
+                    .sort((a, b) => (a.time || "").localeCompare(b.time || ""))
                     .map(m => (
                       <MatchCard key={m.id} m={m} isAdmin={isAdmin} onUpdate={updateMatch} onDelete={deleteMatch} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
                     ))}
@@ -886,6 +893,69 @@ function AdminCoachesPanel({ showToast }) {
 }
 
 // ============================================================
+// Scoreboard
+// ============================================================
+function Scoreboard({ match, isLive, loading }) {
+  const [countdown, setCountdown] = useState("");
+
+  useEffect(() => {
+    if (!match || match.status !== "upcoming" || !match.date || !match.time) { setCountdown(""); return; }
+    function tick() {
+      const target = new Date(`${match.date}T${match.time}:00`);
+      const diff = target - new Date();
+      if (diff <= 0) { setCountdown(""); return; }
+      const days = Math.floor(diff / 86400000);
+      const hrs = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      setCountdown(`Coup d'envoi dans ${days}j ${hrs}h ${mins}min`);
+    }
+    tick();
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, [match]);
+
+  if (loading) {
+    return (
+      <div className="scoreboard">
+        <div className="scoreboard-skeleton">
+          <div className="skel-bar" style={{ width: "40%" }} />
+          <div className="skel-bar" style={{ width: "70%", height: 40 }} />
+          <div className="skel-bar" style={{ width: "50%" }} />
+        </div>
+      </div>
+    );
+  }
+  if (!match) {
+    return <div className="scoreboard"><div className="empty">Aucun match programmé pour le moment.</div></div>;
+  }
+
+  const statusLabel = match.status === "live" ? "En direct" : match.status === "done" ? "Terminé" : "À venir";
+  const statusClass = match.status === "live" ? "sb-status-live" : match.status === "done" ? "sb-status-done" : "";
+  const hasScore = match.scoreA !== null && match.scoreA !== undefined && match.scoreB !== null && match.scoreB !== undefined;
+
+  return (
+    <div className="scoreboard">
+      <div className="sb-label">
+        <div className="lab">{isLive ? "Match en cours" : "Prochain match"}</div>
+        <div className={`status ${statusClass}`}>
+          {match.status === "live" && <span className="live-dot" />}
+          {match.status === "live" ? `${match.minute ?? 0}' — ${statusLabel}` : statusLabel}
+        </div>
+      </div>
+      <div className="sb-grid">
+        <div className="sb-team">{match.teamA}</div>
+        <div className="sb-score">
+          <span>{hasScore ? match.scoreA : "–"}</span><span className="vs">VS</span><span>{hasScore ? match.scoreB : "–"}</span>
+        </div>
+        <div className="sb-team">{match.teamB}</div>
+      </div>
+      <div className="sb-meta">{formatDate(match.date)}{match.time ? ` · ${match.time}` : ""} · Groupe {match.group}</div>
+      <div className="countdown">{countdown}</div>
+    </div>
+  );
+}
+
+// ============================================================
 // Match card (view + admin edit + live goals)
 // ============================================================
 function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }) {
@@ -912,8 +982,8 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
     <div className={`match-card-wrap${isLive ? " is-live" : ""}`}>
       {isAdmin ? (
         <div className="match-card">
-          <input className="edit date" type="date" defaultValue={m.date || ""} onChange={e => onUpdate(m.id, { date: e.target.value || null })} />
-          <input className="edit time" type="time" defaultValue={m.time || ""} onChange={e => onUpdate(m.id, { time: e.target.value || null })} />
+          <input className="edit date" type="date" defaultValue={m.date || ""} onBlur={e => onUpdate(m.id, { date: e.target.value })} />
+          <input className="edit time" type="time" defaultValue={m.time || ""} onBlur={e => onUpdate(m.id, { time: e.target.value })} />
           <div className="match-teams">
             <input className="edit team" defaultValue={m.teamA} onChange={e => onUpdate(m.id, { teamA: e.target.value })} />
             <input className="edit score" type="number" value={m.scoreA ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreA: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
@@ -958,7 +1028,7 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
             {isLive ? (
               <span className="live-minute"><span className="live-dot" />{m.minute ?? 0}'</span>
             ) : (
-              m.time
+              m.time || "—"
             )}
           </div>
           <div className="match-teams">

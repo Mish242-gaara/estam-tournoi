@@ -12,7 +12,7 @@ const EVENT_TYPES = [
 ];
 
 function formatDate(iso) {
-  if (!iso) return "";
+  if (!iso) return "Date à confirmer";
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
@@ -150,7 +150,7 @@ export default function MatchPage({ params }) {
             <div className="live-hero-score-num">{hasScore ? match.scoreA : "–"} <span>–</span> {hasScore ? match.scoreB : "–"}</div>
             <div className="live-hero-team">{match.teamB}</div>
           </div>
-          <div className="live-hero-meta">{formatDate(match.date)} · {match.time} · {phaseLabelFor(match)}</div>
+          <div className="live-hero-meta">{formatDate(match.date)}{match.time ? ` · ${match.time}` : ""} · {phaseLabelFor(match)}</div>
 
           {isKnockout && match.winner && (
             <div className="winner-note" style={{ marginTop: 12, borderRadius: "var(--radius)", borderTop: "1px solid rgba(240,168,60,0.3)" }}>
