@@ -22,7 +22,7 @@ export default function SiteShell({ title, subtitle, children }) {
       <header className="site">
         <div className="header-inner">
           <Link href="/" className="brand" onClick={() => setOpen(false)}>
-            <img src="/estam-logo.svg" alt="Logo ESTAM" className="brand-logo" />
+            <img src="/images/estam-logo.svg" alt="Logo ESTAM" className="brand-logo" />
             <div className="brand-text">
               <div className="t1">ESTAM · POINTE-NOIRE</div>
               <div className="t2">Experience football pro</div>
