@@ -2,8 +2,8 @@
 
 CREATE TABLE IF NOT EXISTS matches (
   id SERIAL PRIMARY KEY,
-  date DATE NOT NULL,
-  time TIME NOT NULL,
+  date DATE,
+  time TIME,
   team_a TEXT NOT NULL,
   team_b TEXT NOT NULL,
   score_a INTEGER,

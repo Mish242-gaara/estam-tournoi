@@ -912,8 +912,8 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
     <div className={`match-card-wrap${isLive ? " is-live" : ""}`}>
       {isAdmin ? (
         <div className="match-card">
-          <input className="edit date" type="date" defaultValue={m.date} onChange={e => onUpdate(m.id, { date: e.target.value })} />
-          <input className="edit time" type="time" defaultValue={m.time} onChange={e => onUpdate(m.id, { time: e.target.value })} />
+          <input className="edit date" type="date" defaultValue={m.date || ""} onChange={e => onUpdate(m.id, { date: e.target.value || null })} />
+          <input className="edit time" type="time" defaultValue={m.time || ""} onChange={e => onUpdate(m.id, { time: e.target.value || null })} />
           <div className="match-teams">
             <input className="edit team" defaultValue={m.teamA} onChange={e => onUpdate(m.id, { teamA: e.target.value })} />
             <input className="edit score" type="number" value={m.scoreA ?? ""} placeholder="-" onChange={e => onUpdate(m.id, { scoreA: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />

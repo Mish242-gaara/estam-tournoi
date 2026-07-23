@@ -22,8 +22,8 @@ export async function PUT(req, { params }) {
   const sql = getDb();
   const rows = await sql`
     UPDATE matches SET
-      date = ${body.date},
-      time = ${body.time},
+      date = ${body.date ?? null},
+      time = ${body.time ?? null},
       team_a = ${body.teamA},
       team_b = ${body.teamB},
       score_a = ${body.scoreA},
