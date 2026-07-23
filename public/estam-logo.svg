@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f2a5d"/>
+      <stop offset="100%" stop-color="#222c69"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d31b2b"/>
+      <stop offset="100%" stop-color="#f28c3f"/>
+    </linearGradient>
+  </defs>
+  <circle cx="130" cy="130" r="126" fill="white" stroke="#2b367e" stroke-width="8"/>
+  <circle cx="130" cy="130" r="110" fill="url(#g1)" opacity="0.95"/>
+  <path d="M90 150 L150 90 L170 110 L110 170 Z" fill="#fff" opacity="0.9"/>
+  <path d="M110 170 L160 122 L148 110 L98 158 Z" fill="url(#g2)"/>
+  <path d="M152 118 L170 136 L146 158 L128 140 Z" fill="#2b367e"/>
+  <text x="130" y="145" text-anchor="middle" font-family="Oswald, sans-serif" font-size="28" fill="#ffffff" font-weight="700">EST@M</text>
+  <text x="130" y="167" text-anchor="middle" font-family="Work Sans, sans-serif" font-size="12" fill="#f5f6fb">formation</text>
+  <text x="130" y="44" text-anchor="middle" font-family="Work Sans, sans-serif" font-size="12" fill="#ffffff" letter-spacing="0.2em">ECOLE SUPERIEURE</text>
+  <text x="130" y="56" text-anchor="middle" font-family="Work Sans, sans-serif" font-size="10" fill="#ffffff" letter-spacing="0.18em">DES TECHNOLOGIES</text>
+  <text x="130" y="232" text-anchor="middle" font-family="Work Sans, sans-serif" font-size="10" fill="#ffffff" letter-spacing="0.18em">AVANCEES ET DE MANAGEMENT</text>
+</svg>
