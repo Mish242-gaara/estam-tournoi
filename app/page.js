@@ -438,7 +438,7 @@ export default function Page() {
       <header className="site">
         <div className="header-inner">
           <div className="brand">
-            <img src="/images/estam.png" alt="Logo ESTAM" className="brand-logo" />
+            <div className="brand-badge"><img src="public/images/estam.png" alt="Logo" /></div>
             <div className="brand-text">
               <div className="t1">ESTAM · POINTE-NOIRE</div>
               <div className="t2">Tournoi Inter-Filières</div>
@@ -455,8 +455,23 @@ export default function Page() {
                 Comptes
               </button>
             )}
+            {!authLoading && (
+              <div className="tabs-auth">
+                {user ? (
+                  <>
+                    <div className="tabs-auth-user">{user.name}{isAdmin ? " ★" : user.role === "coach" ? " (coach)" : ""}</div>
+                    <button className="btn small ghost" onClick={() => { logout(); setNavOpen(false); }}>Se déconnecter</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn small" onClick={() => { openAuth("login"); setNavOpen(false); }}>Se connecter</button>
+                    <button className="btn small ghost" onClick={() => { openAuth("register"); setNavOpen(false); }}>Créer un compte</button>
+                  </>
+                )}
+              </div>
+            )}
           </nav>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
+          <div className="header-auth-desktop" style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
             {!authLoading && (
               user ? (
                 <div style={{ position: "relative" }}>
@@ -477,8 +492,8 @@ export default function Page() {
                 </>
               )
             )}
-            <button className="mobile-toggle" onClick={() => setNavOpen(o => !o)}>☰</button>
           </div>
+          <button className="mobile-toggle" onClick={() => setNavOpen(o => !o)}>☰</button>
         </div>
       </header>
 
@@ -491,7 +506,7 @@ export default function Page() {
             <h1>Tournoi <span>Inter-Filières</span><br />ESTAM 2026</h1>
             <p className="lead">Programme des matchs, classements et meilleurs buteurs de la phase Pointe-Noire, mis à jour en direct par les organisateurs.</p>
 
-           
+            
 
             <Scoreboard match={nextMatch} isLive={Boolean(live)} loading={loading} />
           </div>
@@ -702,6 +717,7 @@ export default function Page() {
               {isAdmin && <button className="btn primary small" onClick={addScorer}>+ Ajouter un buteur</button>}
             </div>
             <div className="scorers-card">
+              <div className="table-scroll">
               <table className="top">
                 <thead>
                   <tr>
@@ -718,6 +734,7 @@ export default function Page() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </section>
         )}
@@ -1090,6 +1107,7 @@ function GroupTable({ title, teams, isAdmin, onUpdate, onDelete, onAdd }) {
   return (
     <div className="group-card">
       <div className="gtitle">{title}</div>
+      <div className="table-scroll">
       <table className="stand">
         <thead>
           <tr>
@@ -1127,6 +1145,7 @@ function GroupTable({ title, teams, isAdmin, onUpdate, onDelete, onAdd }) {
           )}
         </tbody>
       </table>
+      </div>
       {isAdmin && (
         <div className="add-row">
           <button className="btn small ghost" onClick={onAdd}>+ Ajouter une filière</button>

@@ -121,3 +121,11 @@ Seuls les événements de type **but** modifient le score automatiquement ; les 
 ## Dates de match non fixées
 
 Un match (surtout ceux créés automatiquement pour les demi-finales/finales) peut ne pas encore avoir de date ou d'heure. C'est normal : il s'affiche avec "Date à confirmer", groupé à part dans le Programme. Dès que la date est connue, éditez-la en mode admin — l'enregistrement se fait quand vous quittez le champ (pas à chaque frappe), pour éviter d'enregistrer une date incomplète pendant la saisie.
+
+## Responsive / mobile
+
+Le site est conçu pour être utilisable sur smartphone :
+- Les cartes de match en mode organisateur s'empilent verticalement sur petit écran au lieu de comprimer les champs
+- Les tableaux (classements, buteurs) défilent horizontalement si besoin plutôt que de déborder de la page
+- Les colonnes du bracket (page Finales) s'adaptent à la largeur de l'écran
+- Aucun débordement horizontal de page ne devrait plus survenir ; si un cas persiste, décrivez l'écran (page + taille) pour que je corrige précisément
