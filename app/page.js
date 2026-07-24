@@ -402,12 +402,22 @@ export default function Page() {
   }
 
   // ---------- derived data ----------
-  const sortKey = m => `${m.date || "9999-99-99"} ${m.time || "99:99"}`;
-  const sortedMatches = [...matches].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-  const live = sortedMatches.find(m => m.status === "live");
-  const nextMatch = live || sortedMatches.find(m => m.status === "upcoming" && m.date) || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
-  const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
-  const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
+  //const sortKey = m => `${m.date || "9999-99-99"} ${m.time || "99:99"}`;
+  //const sortedMatches = [...matches].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  //const live = sortedMatches.find(m => m.status === "live");
+  //const nextMatch = live || sortedMatches.find(m => m.status === "upcoming" && m.date) || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
+  //const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
+  //const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
+
+  // Fonction de tri complète (Points > Différence de Buts > Buts Marqués)
+const compareTeams = (a, b) => {
+  if (b.pts !== a.pts) return b.pts - a.pts; // 1. Tri par Points
+  if (b.db !== a.db) return b.db - a.db;     // 2. Tri par Différence de buts (DB)
+  return b.bm - a.bm;                        // 3. Tri par Buts marqués (BM)
+};
+
+const groupA = teams.filter(t => t.group === "A").sort(compareTeams);
+const groupB = teams.filter(t => t.group === "B").sort(compareTeams);
 
   // Phases finales : 2 qualifiés par groupe. Le nombre de groupes détermine automatiquement
   // le premier tour (2 groupes → demi-finales, 4 groupes → quarts, etc.), jusqu'à la finale
@@ -418,7 +428,7 @@ export default function Page() {
   const roundPlan = totalQualifiers >= 2 ? roundsForQualifierCount(totalQualifiers) : [];
   const finaleGen = matches.find(m => m.phase === "finale_generale");
 
-  const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
+  //const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
     const key = m.date || "a-programmer";
