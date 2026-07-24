@@ -24,11 +24,23 @@ function phaseLabelFor(m) {
   return PHASE_LABELS[m.phase] || m.group || m.phase;
 }
 
+// Fonction utilitaire de comparaison complète des équipes :
+// 1. Points
+// 2. Différence de buts (BM - BE)
+// 3. Buts marqués (BM)
+function compareTeams(a, b) {
+  if (b.pts !== a.pts) return b.pts - a.pts;
+  const dbA = (a.bm || 0) - (a.be || 0);
+  const dbB = (b.bm || 0) - (b.be || 0);
+  if (dbB !== dbA) return dbB - dbA;
+  return (b.bm || 0) - (a.bm || 0);
+}
+
 // 2 qualifiés par groupe (1er + 2e), classés par points puis différence de buts puis buts marqués.
 function computeQualifiers(teams, group) {
   return teams
     .filter(t => t.group === group)
-    .sort((a, b) => b.pts - a.pts || (b.bm - b.be) - (a.bm - a.be) || b.bm - a.bm)
+    .sort(compareTeams)
     .slice(0, 2);
 }
 
@@ -402,22 +414,14 @@ export default function Page() {
   }
 
   // ---------- derived data ----------
-  //const sortKey = m => `${m.date || "9999-99-99"} ${m.time || "99:99"}`;
-  //const sortedMatches = [...matches].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-  //const live = sortedMatches.find(m => m.status === "live");
-  //const nextMatch = live || sortedMatches.find(m => m.status === "upcoming" && m.date) || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
-  //const groupA = teams.filter(t => t.group === "A").sort((a, b) => b.pts - a.pts);
-  //const groupB = teams.filter(t => t.group === "B").sort((a, b) => b.pts - a.pts);
-
-  // Fonction de tri complète (Points > Différence de Buts > Buts Marqués)
-const compareTeams = (a, b) => {
-  if (b.pts !== a.pts) return b.pts - a.pts; // 1. Tri par Points
-  if (b.db !== a.db) return b.db - a.db;     // 2. Tri par Différence de buts (DB)
-  return b.bm - a.bm;                        // 3. Tri par Buts marqués (BM)
-};
-
-const groupA = teams.filter(t => t.group === "A").sort(compareTeams);
-const groupB = teams.filter(t => t.group === "B").sort(compareTeams);
+  const sortKey = m => `${m.date || "9999-99-99"} ${m.time || "99:99"}`;
+  const sortedMatches = [...matches].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const live = sortedMatches.find(m => m.status === "live");
+  const nextMatch = live || sortedMatches.find(m => m.status === "upcoming" && m.date) || sortedMatches.find(m => m.status === "upcoming") || sortedMatches[sortedMatches.length - 1];
+  
+  // Correction du tri pour les classements de groupes
+  const groupA = teams.filter(t => t.group === "A").sort(compareTeams);
+  const groupB = teams.filter(t => t.group === "B").sort(compareTeams);
 
   // Phases finales : 2 qualifiés par groupe. Le nombre de groupes détermine automatiquement
   // le premier tour (2 groupes → demi-finales, 4 groupes → quarts, etc.), jusqu'à la finale
@@ -515,8 +519,6 @@ const groupB = teams.filter(t => t.group === "B").sort(compareTeams);
             <div className="eyebrow">Phase de groupes · Pointe-Noire</div>
             <h1>Tournoi <span>Inter-Filières</span><br />ESTAM 2026</h1>
             <p className="lead">Programme des matchs, classements et meilleurs buteurs de la phase Pointe-Noire, mis à jour en direct par les organisateurs.</p>
-
-
 
             <Scoreboard match={nextMatch} isLive={Boolean(live)} loading={loading} />
           </div>
@@ -1034,7 +1036,7 @@ function MatchCard({ m, isAdmin, onUpdate, onDelete, onAddEvent, onDeleteEvent }
             <div className="minute-control">
               <input className="edit minute" type="number" min="0" value={m.minute ?? 0} onChange={e => onUpdate(m.id, { minute: parseInt(e.target.value, 10) || 0 })} />
               <span className="min-suffix">'</span>
-              <button type="button" className="btn small ghost" onClick={() => onUpdate(m.id, { minute: (m.minute || 0) + 1 })}>+1'</button>
+              <button type="button" className="btn small ghost" onClick={() => onUpdate(m.id, { minute: (m.minute || 0) + 1 })} >+1'</button>
             </div>
           )}
           <div className="match-admin">
