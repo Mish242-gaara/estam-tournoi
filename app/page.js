@@ -428,7 +428,7 @@ const groupB = teams.filter(t => t.group === "B").sort(compareTeams);
   const roundPlan = totalQualifiers >= 2 ? roundsForQualifierCount(totalQualifiers) : [];
   const finaleGen = matches.find(m => m.phase === "finale_generale");
 
-  //const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
+  const groupStageMatches = sortedMatches.filter(m => !m.phase || m.phase === "groupes");
   const sortedScorers = [...scorers].sort((a, b) => b.buts - a.buts);
   const matchesByDate = groupStageMatches.reduce((acc, m) => {
     const key = m.date || "a-programmer";
