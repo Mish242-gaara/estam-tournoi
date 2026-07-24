@@ -96,6 +96,9 @@ nav.tabs button:hover{ color:white; background:rgba(255,255,255,0.06); }
 nav.tabs button.active{ background:var(--red-600); color:white; box-shadow:var(--shadow-glow-red); }
 nav.tabs button:active{ transform:scale(0.96); }
 
+/* Ajout pour l'affichage desktop des boutons d'auth */
+.header-auth-desktop{ display:flex; align-items:center; gap:10px; position:relative; }
+
 #adminBtn{
   background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:var(--grey-300);
   font-family:'Oswald'; font-size:12px; letter-spacing:0.05em; padding:8px 14px; border-radius:20px; cursor:pointer;
@@ -115,12 +118,14 @@ nav.tabs button:active{ transform:scale(0.96); }
   nav.tabs button{ text-align:left; width:100%; }
   nav.tabs.open .tabs-auth{ display:flex; flex-direction:column; gap:8px; width:100%; margin-top:8px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.1); }
   nav.tabs.open .tabs-auth .btn{ width:100%; text-align:center; }
-  .header-auth-desktop{ display:none; }
+  
+  /* Ajout de !important pour forcer le masquage malgré les styles inline du JSX */
+  .header-auth-desktop{ display:none !important; }
+  
   .mobile-toggle{ display:block; }
   .header-inner{ flex-wrap:nowrap; }
 }
 @keyframes dropIn{ from{ opacity:0; transform:translateY(-8px); } to{ opacity:1; transform:translateY(0); } }
-
 /* ============================================================
    HERO — stadium floodlight ambience (signature motion moment)
    ============================================================ */
