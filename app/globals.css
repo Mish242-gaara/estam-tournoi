@@ -48,6 +48,7 @@ h1,h2,h3,h4,.font-display{ font-family:'Oswald',sans-serif; text-transform:upper
 ::-webkit-scrollbar-thumb:hover{ background:var(--navy-600); }
 
 a{ color:inherit; }
+img{ max-width:100%; height:auto; display:block; }
 button, input, select{ font-family:inherit; }
 
 :focus-visible{ outline:2px solid var(--gold-500); outline-offset:2px; border-radius:4px; }
@@ -79,8 +80,9 @@ header.site{
   width:42px; height:42px; border-radius:50%; background:linear-gradient(155deg, var(--red-500), var(--red-700));
   display:flex; align-items:center; justify-content:center; font-family:'Oswald'; font-weight:700; font-size:15px;
   border:2px solid rgba(255,255,255,0.25); flex-shrink:0; box-shadow:0 4px 14px -2px rgba(212,27,43,0.55), inset 0 1px 0 rgba(255,255,255,0.2);
-  transition:transform .3s var(--ease);
+  transition:transform .3s var(--ease); overflow:hidden;
 }
+.brand-badge img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .brand:hover .brand-badge{ transform:rotate(-8deg) scale(1.05); }
 .brand-text .t1{ font-size:11px; letter-spacing:0.14em; color:var(--grey-300); font-weight:500; }
 .brand-text .t2{ font-size:17px; font-weight:600; }
