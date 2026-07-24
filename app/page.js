@@ -438,7 +438,7 @@ export default function Page() {
       <header className="site">
         <div className="header-inner">
           <div className="brand">
-            <div className="brand-badge"><img src="public/images/estam.png" alt="Logo" /></div>
+            <div className="brand-badge"><img src="/images/estam.png" alt="Logo" /></div>
             <div className="brand-text">
               <div className="t1">ESTAM · POINTE-NOIRE</div>
               <div className="t2">Tournoi Inter-Filières</div>
